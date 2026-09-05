@@ -1,4 +1,5 @@
 import { Movie, StreamingSource, Genre, SearchResultItem, ApiResponse, MovieClip, RelatedClipsResponse, UnifiedSearchResponse, AdBanner, UpcomingMovie } from "../types";
+import { INDIAN_MOVIES_RECENT_ITEMS, INDIAN_MOVIES_CLIPS } from "../data/indianMovies";
 
 export const FALLBACK_POSTER = "/movie-placeholder.svg";
 
@@ -272,6 +273,7 @@ export interface RecentAddedItem {
 }
 
 export const FALLBACK_RECENT_ADDED: RecentAddedItem[] = [
+  ...INDIAN_MOVIES_RECENT_ITEMS,
   {
     id: "rec-1",
     itemType: "video_link",
@@ -369,10 +371,15 @@ export async function fetchRecentAdded24h(): Promise<{
     if (res.ok) {
       const json = await res.json();
       if (json.data && json.data.length > 0) {
+        // Guarantee all 11 Indian movies are always present
+        const existingIds = new Set(json.data.map((i: RecentAddedItem) => i.id));
+        const missingIndian = INDIAN_MOVIES_RECENT_ITEMS.filter((im) => !existingIds.has(im.id));
+        const combined = [...missingIndian, ...json.data];
+
         return {
-          items: json.data,
-          count: json.count || json.data.length,
-          clipCount: json.clipCount || json.data.length,
+          items: combined,
+          count: combined.length,
+          clipCount: json.clipCount || combined.length,
           adCount: json.adCount || 0
         };
       }
@@ -387,6 +394,21 @@ export async function fetchRecentAdded24h(): Promise<{
     clipCount: FALLBACK_RECENT_ADDED.length,
     adCount: 0
   };
+}
+
+export async function fetchIndianMovies(): Promise<MovieClip[]> {
+  try {
+    const res = await fetch("/api/movies/indian");
+    if (res.ok) {
+      const json = await res.json();
+      if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+        return json.data;
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return INDIAN_MOVIES_CLIPS;
 }
 
 export async function fetchMovieDetails(id: number): Promise<Movie> {

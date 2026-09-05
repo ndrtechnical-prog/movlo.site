@@ -23,6 +23,7 @@ import {
   addClips,
   deleteClip,
   resetClipsToDefault,
+  getIndianClips,
   MovieClip
 } from "./server/services/clips.js";
 import { analyzeAndGenerateClipMetadata } from "./server/services/gemini.js";
@@ -345,8 +346,13 @@ app.get("/api/movies/recent-added-24h", async (_req: Request, res: Response) => 
     const now = Date.now();
     const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
-    // Filter clips added within the last 24 hours
+    // Filter clips added within the last 24 hours OR Indian category movies
     const recentClips = allClips.filter((clip) => {
+      const isIndian =
+        (clip.genre && clip.genre.toLowerCase().includes("indian")) ||
+        (clip.genres && clip.genres.some((g) => g.toLowerCase().includes("indian")));
+      if (isIndian) return true;
+
       if (!clip.publishedAt) return false;
       const t = new Date(clip.publishedAt).getTime();
       if (isNaN(t)) return false;
@@ -375,27 +381,33 @@ app.get("/api/movies/recent-added-24h", async (_req: Request, res: Response) => 
     };
 
     // Transform video clips to Movie-card structure
-    const clipMovieItems = recentClips.map((clip) => ({
-      id: clip.id,
-      itemType: "video_link" as const,
-      title: clip.movieTitle || clip.clipTitle || "Featured Cinema",
-      subtitle: clip.clipTitle || "Stream Video",
-      poster: clip.poster || clip.thumbnail || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800&auto=format&fit=crop&q=80",
-      backdrop: clip.backdrop || clip.thumbnail,
-      videoUrl: clip.videoUrl,
-      duration: clip.duration || "3:30",
-      year: clip.year || new Date().getFullYear(),
-      rating: clip.rating || 9.2,
-      quality: clip.quality || "4K UHD",
-      genre: clip.genre || (clip.genres && clip.genres[0]) || "Action",
-      genres: clip.genres || ["Action", "Cinema"],
-      description: clip.description,
-      badge: clip.quality || "4K UHD",
-      addedAt: clip.publishedAt,
-      addedAgo: formatTimeAgo(clip.publishedAt),
-      views: clip.views || 60000,
-      isAd: false
-    }));
+    const clipMovieItems = recentClips.map((clip) => {
+      const isIndian =
+        (clip.genre && clip.genre.toLowerCase().includes("indian")) ||
+        (clip.genres && clip.genres.some((g) => g.toLowerCase().includes("indian")));
+
+      return {
+        id: clip.id,
+        itemType: "video_link" as const,
+        title: clip.movieTitle || clip.clipTitle || "Featured Cinema",
+        subtitle: clip.clipTitle || "Stream Video",
+        poster: clip.poster || clip.thumbnail || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800&auto=format&fit=crop&q=80",
+        backdrop: clip.backdrop || clip.thumbnail,
+        videoUrl: clip.videoUrl,
+        duration: clip.duration || "3:30",
+        year: clip.year || new Date().getFullYear(),
+        rating: clip.rating || 9.2,
+        quality: clip.quality || "4K UHD",
+        genre: isIndian ? "Indian Cinema" : clip.genre || (clip.genres && clip.genres[0]) || "Action",
+        genres: clip.genres || ["Action", "Cinema"],
+        description: clip.description,
+        badge: isIndian ? "🇮🇳 INDIAN CINEMA" : clip.quality || "4K UHD",
+        addedAt: clip.publishedAt,
+        addedAgo: formatTimeAgo(clip.publishedAt),
+        views: clip.views || 60000,
+        isAd: false
+      };
+    });
 
     // Transform ads to Movie-card structure (with target redirection link)
     const adMovieItems = recentAds.map((ad) => ({
@@ -436,6 +448,21 @@ app.get("/api/movies/recent-added-24h", async (_req: Request, res: Response) => 
   } catch (error: any) {
     console.error("Route /api/movies/recent-added-24h error:", error?.message);
     res.status(500).json({ success: false, message: "Unable to load 24h recent items." });
+  }
+});
+
+// GET /api/movies/indian - Dedicated endpoint for all Indian category movies
+app.get("/api/movies/indian", async (_req: Request, res: Response) => {
+  try {
+    const indianClips = await getIndianClips();
+    res.json({
+      success: true,
+      data: indianClips,
+      count: indianClips.length
+    });
+  } catch (err: any) {
+    console.error("Route /api/movies/indian error:", err?.message);
+    res.status(500).json({ success: false, message: "Unable to load Indian movies." });
   }
 });
 

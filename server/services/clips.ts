@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { INDIAN_MOVIES_LIST } from "./indianMovies.js";
 
 export interface ClipSEO {
   title: string;
@@ -408,24 +409,53 @@ let clipsCache: MovieClip[] | null = null;
 async function ensureClipsFile(): Promise<MovieClip[]> {
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
+    let existingClips: MovieClip[] = [];
     try {
       const content = await fs.readFile(CLIPS_FILE, "utf-8");
       const parsed = JSON.parse(content);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        clipsCache = parsed;
-        return parsed;
+        existingClips = parsed;
       }
     } catch {
-      // File doesn't exist or is empty, write initial
+      // File doesn't exist or is empty
     }
-    await fs.writeFile(CLIPS_FILE, JSON.stringify(INITIAL_CLIPS, null, 2), "utf-8");
-    clipsCache = [...INITIAL_CLIPS];
+
+    if (existingClips.length === 0) {
+      existingClips = [...INITIAL_CLIPS];
+    }
+
+    // Always ensure all 11 Indian Cinema movies are present and placed prominently
+    const existingIds = new Set(existingClips.map((c) => c.id));
+    const nowIso = new Date().toISOString();
+    const refreshedIndianList = INDIAN_MOVIES_LIST.map((m) => ({
+      ...m,
+      publishedAt: nowIso
+    }));
+
+    // Remove old versions of Indian movies if any, and unshift the refreshed 11 Indian movies to top
+    const nonIndianClips = existingClips.filter(
+      (c) => !INDIAN_MOVIES_LIST.some((im) => im.id === c.id || im.videoUrl === c.videoUrl)
+    );
+
+    const merged = [...refreshedIndianList, ...nonIndianClips];
+
+    await fs.writeFile(CLIPS_FILE, JSON.stringify(merged, null, 2), "utf-8");
+    clipsCache = merged;
     return clipsCache;
   } catch (err) {
     console.error("[Clips Service] Error initializing storage:", err);
-    clipsCache = [...INITIAL_CLIPS];
+    clipsCache = [...INDIAN_MOVIES_LIST, ...INITIAL_CLIPS];
     return clipsCache;
   }
+}
+
+export async function getIndianClips(): Promise<MovieClip[]> {
+  const all = await getAllClips();
+  return all.filter(
+    (c) =>
+      c.genre.toLowerCase().includes("indian") ||
+      (c.genres && c.genres.some((g) => g.toLowerCase().includes("indian")))
+  );
 }
 
 export async function getAllClips(): Promise<MovieClip[]> {

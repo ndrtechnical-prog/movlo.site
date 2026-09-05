@@ -149,32 +149,114 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
   onRetry,
   onOpenAdmin
 }) => {
+  const [selectedCategory, setSelectedCategory] = useState<"indian" | "all" | "action" | "ads">("indian");
+
+  // Category classification helper
+  const isIndianItem = (item: RecentAddedItem) => {
+    const text = `${item.genre || ""} ${item.genres?.join(" ") || ""} ${item.badge || ""} ${item.title || ""}`.toLowerCase();
+    return text.includes("indian") || text.includes("bollywood") || text.includes("south cinema");
+  };
+
+  const indianCount = items.filter(isIndianItem).length;
+  const adsCount = items.filter((item) => item.isAd || item.itemType === "ad_link").length;
+  const actionCount = items.filter((item) => !item.isAd && (item.genre?.toLowerCase().includes("action") || item.genres?.some(g => g.toLowerCase().includes("action")))).length;
+
+  const filteredItems = items.filter((item) => {
+    if (selectedCategory === "indian") return isIndianItem(item);
+    if (selectedCategory === "ads") return item.isAd || item.itemType === "ad_link";
+    if (selectedCategory === "action") return !item.isAd && (item.genre?.toLowerCase().includes("action") || item.genres?.some(g => g.toLowerCase().includes("action")));
+    return true; // "all"
+  });
+
   return (
     <section id="recent-added" className="w-full py-6 sm:py-10 max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
       {/* Section Header */}
-      <div className="flex items-center justify-between gap-3 mb-3 sm:mb-6 border-b border-white/5 pb-2.5 sm:pb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 sm:mb-6 border-b border-white/5 pb-3 sm:pb-4">
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-sm shadow-amber-500/10">
-            <Sparkles className="w-4 h-4" />
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-sm shadow-amber-500/10">
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <h2 className="text-base sm:text-2xl font-bold font-['Syne',sans-serif] text-white tracking-tight flex items-center gap-2">
-              <span>Recent Added</span>
-              <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                Last 24 Hours
+            <h2 className="text-base sm:text-2xl font-bold font-['Syne',sans-serif] text-white tracking-tight flex items-center gap-2 flex-wrap">
+              <span>Recent Added Cinema</span>
+              <span className="text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                <span>🇮🇳</span> Indian Category
               </span>
             </h2>
             <p className="text-[10px] sm:text-xs text-gray-400 font-medium">
-              Only showing links added in the last 24 hours (Bulk, Single Video Links & Ads)
+              Auto-fetched YouTube links & cinema streams • High Definition 1080p / 4K
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {items.length > 0 && (
-            <span className="text-[10px] sm:text-xs text-amber-400 font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 backdrop-blur-sm">
-              {items.length} {items.length === 1 ? "link active" : "links active"}
+        {/* Category Selection Filter Tabs */}
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1">
+          <button
+            onClick={() => setSelectedCategory("indian")}
+            className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+              selectedCategory === "indian"
+                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-neutral-950 shadow-md shadow-amber-500/20 font-black"
+                : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
+            }`}
+          >
+            <span>🇮🇳 Indian Category</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              selectedCategory === "indian" ? "bg-neutral-950 text-amber-400" : "bg-white/10 text-neutral-300"
+            }`}>
+              {indianCount}
             </span>
+          </button>
+
+          <button
+            onClick={() => setSelectedCategory("all")}
+            className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
+              selectedCategory === "all"
+                ? "bg-amber-500 text-neutral-950 font-bold shadow-md shadow-amber-500/20"
+                : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
+            }`}
+          >
+            <span>All Links</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              selectedCategory === "all" ? "bg-neutral-950 text-amber-400" : "bg-white/10 text-neutral-300"
+            }`}>
+              {items.length}
+            </span>
+          </button>
+
+          {actionCount > 0 && (
+            <button
+              onClick={() => setSelectedCategory("action")}
+              className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
+                selectedCategory === "action"
+                  ? "bg-amber-500 text-neutral-950 font-bold shadow-md shadow-amber-500/20"
+                  : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
+              }`}
+            >
+              <span>Action & Thriller</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                selectedCategory === "action" ? "bg-neutral-950 text-amber-400" : "bg-white/10 text-neutral-300"
+              }`}>
+                {actionCount}
+              </span>
+            </button>
+          )}
+
+          {adsCount > 0 && (
+            <button
+              onClick={() => setSelectedCategory("ads")}
+              className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
+                selectedCategory === "ads"
+                  ? "bg-amber-500 text-neutral-950 font-bold shadow-md shadow-amber-500/20"
+                  : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
+              }`}
+            >
+              <span>Sponsored</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                selectedCategory === "ads" ? "bg-neutral-950 text-amber-400" : "bg-white/10 text-neutral-300"
+              }`}>
+                {adsCount}
+              </span>
+            </button>
           )}
         </div>
       </div>
@@ -212,9 +294,9 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
       )}
 
       {/* 16:9 Widescreen Cards Grid */}
-      {!isLoading && !error && items.length > 0 && (
+      {!isLoading && !error && filteredItems.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5 w-full">
-          {items.map((item, idx) => (
+          {filteredItems.map((item, idx) => (
             <RecentItemCard
               key={`${item.id}-${idx}`}
               item={item}
@@ -225,29 +307,26 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
         </div>
       )}
 
-      {/* Empty State when no links were added in the last 24 hours */}
-      {!isLoading && !error && items.length === 0 && (
+      {/* Empty State when no links match active filter */}
+      {!isLoading && !error && filteredItems.length === 0 && (
         <div className="w-full py-10 px-4 sm:px-8 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-md text-center flex flex-col items-center justify-center gap-3.5">
           <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
             <Clock className="w-6 h-6" />
           </div>
           <div className="max-w-md space-y-1">
             <h3 className="text-sm sm:text-base font-bold text-white">
-              No Links Added in Last 24 Hours
+              No Movies in {selectedCategory === "indian" ? "Indian Category" : "Selected Category"}
             </h3>
             <p className="text-xs text-gray-400 leading-relaxed">
-              Pichle 24 ghante me koi link add nahi hua. Admin portal se video links (Single ya Bulk) ya Ads posters add karein, wo yahan movie card ban kar show honge.
+              Show All Links par click karein ya Admin Portal se naye links add karein.
             </p>
           </div>
-          {onOpenAdmin && (
-            <button
-              onClick={onOpenAdmin}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs uppercase tracking-wider transition-colors shadow-lg shadow-amber-500/20 cursor-pointer"
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span>Open Admin Portal (PIN: 77490869)</span>
-            </button>
-          )}
+          <button
+            onClick={() => setSelectedCategory("all")}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs uppercase tracking-wider transition-colors shadow-lg shadow-amber-500/20 cursor-pointer"
+          >
+            <span>Show All Links ({items.length})</span>
+          </button>
         </div>
       )}
     </section>
