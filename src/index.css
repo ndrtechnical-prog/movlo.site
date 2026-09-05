@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  --font-lumos: 'Lumos', 'Cinzel Decorative', 'Cinzel', serif;
+}
+
+.font-lumos {
+  font-family: 'Lumos', 'Cinzel Decorative', 'Cinzel', serif;
+  letter-spacing: 0.03em;
+}
