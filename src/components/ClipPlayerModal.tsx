@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { X, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Maximize2, Minimize2, Zap, Download, Sparkles, ExternalLink } from "lucide-react";
 import { MovieClip } from "../types";
 import { getCinemaPosterFallback } from "../lib/api";
+import { triggerMonetagLink } from "../lib/monetag";
 
 interface ClipPlayerModalProps {
   clip: MovieClip | null;
@@ -256,6 +257,38 @@ export const ClipPlayerModal: React.FC<ClipPlayerModalProps> = ({
                 <span className="hidden sm:inline text-[11px]">Landscape</span>
               </>
             )}
+          </button>
+        </div>
+
+        {/* Monetag High-Yield Revenue Actions (4K Server 2, Download, VIP Pass) */}
+        <div className="w-full pt-3 flex flex-wrap items-center justify-center gap-2 max-w-lg mx-auto px-2">
+          <button
+            onClick={() => triggerMonetagLink()}
+            className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 hover:text-amber-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+            title="Fast 4K Server 2"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-400 fill-current" />
+            <span>Fast Server 2 (4K)</span>
+            <ExternalLink className="w-3 h-3 opacity-70" />
+          </button>
+
+          <button
+            onClick={() => triggerMonetagLink()}
+            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-neutral-200 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+            title="Download Full HD"
+          >
+            <Download className="w-3.5 h-3.5 text-amber-400" />
+            <span>Download 1080p</span>
+            <ExternalLink className="w-3 h-3 opacity-70" />
+          </button>
+
+          <button
+            onClick={() => triggerMonetagLink()}
+            className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+            title="Watch in VIP Cinema"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>VIP Cinema Pass</span>
           </button>
         </div>
 

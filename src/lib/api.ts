@@ -523,40 +523,64 @@ export async function searchMoviesApi(query: string): Promise<SearchResultItem[]
   }));
 }
 
-// Unified Search (Movies + Clips)
+// Unified Search across local JSON movie files
 export async function searchUnifiedApi(query: string): Promise<UnifiedSearchResponse> {
   if (!query.trim()) return { success: true, movies: [], clips: [] };
+  
   try {
-    const params = new URLSearchParams({ q: query.trim() });
-    const res = await fetch(`/api/search?${params.toString()}`);
-    if (res.ok) {
-      const json = await res.json();
-      return {
-        success: true,
-        movies: json.movies || json.data || [],
-        clips: json.clips || []
-      };
-    }
-  } catch {
-    // Fallback search
+    const { searchJsonMovies } = await import("./jsonMovies");
+    const matched = await searchJsonMovies(query.trim());
+    
+    const clips: MovieClip[] = matched.map((m, idx) => ({
+      id: m.id,
+      movieId: idx + 1,
+      movieTitle: m.title,
+      clipTitle: m.fullTitle || m.title,
+      videoUrl: m.videoUrl,
+      thumbnail: m.thumbnail || m.poster,
+      poster: m.poster || m.thumbnail,
+      backdrop: m.backdrop || m.thumbnail || m.poster,
+      duration: m.duration || "Full Movie",
+      quality: (m.quality === "720p HD" || m.quality === "4K UHD" ? m.quality : "1080p HD"),
+      genre: m.genre || "Cinema",
+      genres: m.genres || [m.genre || "Cinema"],
+      year: m.year || 2026,
+      rating: m.rating || 9.2,
+      description: m.description || `Stream ${m.title} in high definition.`,
+      views: m.views || 45000 + idx * 500,
+      likes: 2100 + idx * 30,
+      isTrending: true,
+      isMostWatched: idx < 3,
+      publishedAt: "2026-01-01",
+      tags: ["movie", "cinema", "stream"],
+      seo: {
+        title: `${m.title} — Movlo.site`,
+        description: m.description || m.title,
+        keywords: ["movie", "stream", m.title]
+      }
+    }));
+
+    const movies: SearchResultItem[] = matched.map((m, idx) => ({
+      id: idx + 1,
+      title: m.title,
+      year: m.year || 2026,
+      type: "movie",
+      poster: m.thumbnail || m.poster
+    }));
+
+    return {
+      success: true,
+      movies,
+      clips
+    };
+  } catch (err) {
+    console.error("Local JSON search error:", err);
+    return {
+      success: true,
+      movies: [],
+      clips: []
+    };
   }
-
-  const q = query.toLowerCase();
-  const matchedMovies = CURATED_FALLBACK_MOVIES.filter(
-    (m) => m.title.toLowerCase().includes(q) || m.genres?.some((g) => g.toLowerCase().includes(q))
-  ).map((m) => ({
-    id: m.id,
-    title: m.title,
-    year: m.year,
-    type: m.type || "movie",
-    poster: m.poster
-  }));
-
-  return {
-    success: true,
-    movies: matchedMovies,
-    clips: []
-  };
 }
 
 // CLIPS API FUNCTIONS

@@ -1,14 +1,19 @@
-import React, { useState } from "react";
-import { Sparkles, Star, Play, ExternalLink, Film, Clock, AlertCircle, RefreshCw, PlusCircle, Shield } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Sparkles, Star, Play, ExternalLink, Film, Clock, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, ArrowDown } from "lucide-react";
 import { RecentAddedItem, FALLBACK_POSTER, getCinemaPosterFallback } from "../lib/api";
+import {
+  JsonMovie,
+  MovieCategory,
+  CATEGORY_LABELS,
+  loadMoviesByCategory,
+  jsonMovieToRecentItem
+} from "../lib/jsonMovies";
+import { MONETAG_NATIVE_ADS } from "../lib/monetag";
 
 interface RecentAddedSectionProps {
-  items: RecentAddedItem[];
-  isLoading: boolean;
-  error?: string | null;
+  selectedCategory: MovieCategory;
+  onSelectCategory: (category: MovieCategory) => void;
   onSelectItem: (item: RecentAddedItem) => void;
-  onRetry?: () => void;
-  onOpenAdmin?: () => void;
 }
 
 interface RecentItemCardProps {
@@ -141,35 +146,128 @@ const RecentItemCard: React.FC<RecentItemCardProps> = ({ item, onSelect, priorit
   );
 };
 
+const CATEGORIES: MovieCategory[] = ["english", "indian", "chinese", "dramas", "others"];
+
 export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
-  items,
-  isLoading,
-  error,
-  onSelectItem,
-  onRetry,
-  onOpenAdmin
+  selectedCategory,
+  onSelectCategory,
+  onSelectItem
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<"indian" | "all" | "action" | "ads">("indian");
+  const [allCategoryMovies, setAllCategoryMovies] = useState<JsonMovie[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Category classification helper
-  const isIndianItem = (item: RecentAddedItem) => {
-    const text = `${item.genre || ""} ${item.genres?.join(" ") || ""} ${item.badge || ""} ${item.title || ""}`.toLowerCase();
-    return text.includes("indian") || text.includes("bollywood") || text.includes("south cinema");
-  };
+  // Pagination for English Movies (loads exactly 8 movies initially)
+  const [englishPage, setEnglishPage] = useState(1);
+  const ENGLISH_PAGE_SIZE = 8;
 
-  const indianCount = items.filter(isIndianItem).length;
-  const adsCount = items.filter((item) => item.isAd || item.itemType === "ad_link").length;
-  const actionCount = items.filter((item) => !item.isAd && (item.genre?.toLowerCase().includes("action") || item.genres?.some(g => g.toLowerCase().includes("action")))).length;
+  // Infinite scrolling for Indian Movies & Dramas (continuous listing of large datasets)
+  const isInfiniteCategory = selectedCategory === "indian" || selectedCategory === "dramas";
+  const [infiniteVisibleCount, setInfiniteVisibleCount] = useState(16);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const filteredItems = items.filter((item) => {
-    if (selectedCategory === "indian") return isIndianItem(item);
-    if (selectedCategory === "ads") return item.isAd || item.itemType === "ad_link";
-    if (selectedCategory === "action") return !item.isAd && (item.genre?.toLowerCase().includes("action") || item.genres?.some(g => g.toLowerCase().includes("action")));
-    return true; // "all"
-  });
+  // Reset pagination state when switching category
+  useEffect(() => {
+    if (selectedCategory === "english") {
+      setEnglishPage(1);
+    } else if (isInfiniteCategory) {
+      setInfiniteVisibleCount(16);
+    }
+  }, [selectedCategory, isInfiniteCategory]);
+
+  // Load JSON movies for the selected category
+  const loadCategoryData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await loadMoviesByCategory(selectedCategory);
+      setAllCategoryMovies(data);
+    } catch (err: any) {
+      setError(`Failed to load ${CATEGORY_LABELS[selectedCategory]}. Please try again.`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    loadCategoryData();
+  }, [loadCategoryData]);
+
+  // Infinite Scroll Observer for Indian Movies & Dramas
+  useEffect(() => {
+    if (!isInfiniteCategory) return;
+    if (infiniteVisibleCount >= allCategoryMovies.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setInfiniteVisibleCount((prev) => Math.min(prev + 16, allCategoryMovies.length));
+        }
+      },
+      { threshold: 0.1, rootMargin: "200px" }
+    );
+
+    const target = sentinelRef.current;
+    if (target) observer.observe(target);
+
+    return () => {
+      if (target) observer.unobserve(target);
+    };
+  }, [isInfiniteCategory, infiniteVisibleCount, allCategoryMovies.length]);
+
+  // Compute items to display based on category rules + Intersperse Monetag Native Ads
+  const displayedItems: RecentAddedItem[] = React.useMemo(() => {
+    let baseItems: RecentAddedItem[] = [];
+
+    if (selectedCategory === "english") {
+      // Show exactly 8 movies for the current page
+      const startIdx = (englishPage - 1) * ENGLISH_PAGE_SIZE;
+      const paged = allCategoryMovies.slice(startIdx, startIdx + ENGLISH_PAGE_SIZE);
+      baseItems = paged.map((m, idx) => jsonMovieToRecentItem(m, startIdx + idx));
+    } else if (isInfiniteCategory) {
+      // Continuous / infinite movie listing
+      const visible = allCategoryMovies.slice(0, infiniteVisibleCount);
+      baseItems = visible.map((m, idx) => jsonMovieToRecentItem(m, idx));
+    } else {
+      // Display all movies in Chinese, Others
+      baseItems = allCategoryMovies.map((m, idx) => jsonMovieToRecentItem(m, idx));
+    }
+
+    // Intersperse Monetag native sponsored cards seamlessly into the movie grid every 8 cards
+    const withAds: RecentAddedItem[] = [];
+    baseItems.forEach((item, index) => {
+      withAds.push(item);
+      if ((index + 1) % 8 === 0) {
+        const adIndex = Math.floor(index / 8) % MONETAG_NATIVE_ADS.length;
+        const nativeAd = MONETAG_NATIVE_ADS[adIndex];
+        withAds.push({
+          id: `${nativeAd.id}-${index}`,
+          title: nativeAd.title,
+          subtitle: nativeAd.subtitle,
+          poster: nativeAd.poster,
+          backdrop: nativeAd.backdrop,
+          rating: nativeAd.rating,
+          badge: nativeAd.badge,
+          genre: nativeAd.genre,
+          genres: [nativeAd.genre, "Sponsored"],
+          targetUrl: nativeAd.targetUrl,
+          year: 2026,
+          quality: "4K UHD",
+          addedAt: new Date().toISOString(),
+          isAd: true,
+          itemType: "ad_link",
+          addedAgo: nativeAd.addedAgo
+        });
+      }
+    });
+
+    return withAds;
+  }, [selectedCategory, isInfiniteCategory, allCategoryMovies, englishPage, infiniteVisibleCount]);
+
+  const totalEnglishPages = Math.ceil(allCategoryMovies.length / ENGLISH_PAGE_SIZE);
 
   return (
-    <section id="recent-added" className="w-full py-6 sm:py-10 max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
+    <section id="movie-catalog-section" className="w-full py-6 sm:py-10 max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
       {/* Section Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 sm:mb-6 border-b border-white/5 pb-3 sm:pb-4">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -178,86 +276,35 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
           </div>
           <div>
             <h2 className="text-base sm:text-2xl font-bold font-['Syne',sans-serif] text-white tracking-tight flex items-center gap-2 flex-wrap">
-              <span>Recent Added Cinema</span>
-              <span className="text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
-                <span>🇮🇳</span> Indian Category
+              <span>{CATEGORY_LABELS[selectedCategory]}</span>
+              <span className="text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40">
+                {allCategoryMovies.length} Titles
               </span>
             </h2>
             <p className="text-[10px] sm:text-xs text-gray-400 font-medium">
-              Auto-fetched YouTube links & cinema streams • High Definition 1080p / 4K
+              High Definition YouTube Movies & Cinema Streams • 1080p / 4K UHD
             </p>
           </div>
         </div>
 
-        {/* Category Selection Filter Tabs */}
+        {/* Category Navigation Tabs */}
         <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1">
-          <button
-            onClick={() => setSelectedCategory("indian")}
-            className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-              selectedCategory === "indian"
-                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-neutral-950 shadow-md shadow-amber-500/20 font-black"
-                : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
-            }`}
-          >
-            <span>🇮🇳 Indian Category</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-              selectedCategory === "indian" ? "bg-neutral-950 text-amber-400" : "bg-white/10 text-neutral-300"
-            }`}>
-              {indianCount}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setSelectedCategory("all")}
-            className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
-              selectedCategory === "all"
-                ? "bg-amber-500 text-neutral-950 font-bold shadow-md shadow-amber-500/20"
-                : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
-            }`}
-          >
-            <span>All Links</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-              selectedCategory === "all" ? "bg-neutral-950 text-amber-400" : "bg-white/10 text-neutral-300"
-            }`}>
-              {items.length}
-            </span>
-          </button>
-
-          {actionCount > 0 && (
-            <button
-              onClick={() => setSelectedCategory("action")}
-              className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
-                selectedCategory === "action"
-                  ? "bg-amber-500 text-neutral-950 font-bold shadow-md shadow-amber-500/20"
-                  : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
-              }`}
-            >
-              <span>Action & Thriller</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                selectedCategory === "action" ? "bg-neutral-950 text-amber-400" : "bg-white/10 text-neutral-300"
-              }`}>
-                {actionCount}
-              </span>
-            </button>
-          )}
-
-          {adsCount > 0 && (
-            <button
-              onClick={() => setSelectedCategory("ads")}
-              className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
-                selectedCategory === "ads"
-                  ? "bg-amber-500 text-neutral-950 font-bold shadow-md shadow-amber-500/20"
-                  : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
-              }`}
-            >
-              <span>Sponsored</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                selectedCategory === "ads" ? "bg-neutral-950 text-amber-400" : "bg-white/10 text-neutral-300"
-              }`}>
-                {adsCount}
-              </span>
-            </button>
-          )}
+          {CATEGORIES.map((cat) => {
+            const isActive = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => onSelectCategory(cat)}
+                className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  isActive
+                    ? "bg-gradient-to-r from-amber-500 to-orange-500 text-neutral-950 shadow-md shadow-amber-500/20 font-black"
+                    : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
+                }`}
+              >
+                <span>{CATEGORY_LABELS[cat]}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -266,22 +313,20 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
         <div className="w-full p-4 sm:p-6 rounded-xl bg-red-950/20 backdrop-blur-md border border-red-500/20 text-center flex flex-col items-center justify-center gap-3 my-4">
           <AlertCircle className="w-6 h-6 text-red-400" />
           <p className="text-xs sm:text-sm text-neutral-300 max-w-md">{error}</p>
-          {onRetry && (
-            <button
-              onClick={onRetry}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition-colors cursor-pointer border border-white/10"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Try Again</span>
-            </button>
-          )}
+          <button
+            onClick={loadCategoryData}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition-colors cursor-pointer border border-white/10"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Try Again</span>
+          </button>
         </div>
       )}
 
-      {/* Loading Skeleton in 16:9 widescreen ratio */}
+      {/* Loading Skeleton */}
       {isLoading && (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5 w-full">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="flex flex-col w-full animate-pulse bg-white/5 border border-white/10 rounded-xl overflow-hidden backdrop-blur-md">
               <div className="w-full aspect-[16/9] bg-neutral-800/40" />
               <div className="p-2 sm:p-2.5 bg-black/20 space-y-1.5">
@@ -294,9 +339,9 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
       )}
 
       {/* 16:9 Widescreen Cards Grid */}
-      {!isLoading && !error && filteredItems.length > 0 && (
+      {!isLoading && !error && displayedItems.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5 w-full">
-          {filteredItems.map((item, idx) => (
+          {displayedItems.map((item, idx) => (
             <RecentItemCard
               key={`${item.id}-${idx}`}
               item={item}
@@ -307,26 +352,81 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
         </div>
       )}
 
-      {/* Empty State when no links match active filter */}
-      {!isLoading && !error && filteredItems.length === 0 && (
-        <div className="w-full py-10 px-4 sm:px-8 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-md text-center flex flex-col items-center justify-center gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-            <Clock className="w-6 h-6" />
+      {/* English Movies Pagination Controls (Initial 8 movies, next/prev without page reload) */}
+      {!isLoading && selectedCategory === "english" && totalEnglishPages > 1 && (
+        <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-3 mt-6 sm:mt-8 pt-4 border-t border-white/10">
+          <div className="text-xs text-neutral-400 font-medium">
+            Showing <span className="text-white font-bold">{(englishPage - 1) * ENGLISH_PAGE_SIZE + 1}</span> -{" "}
+            <span className="text-white font-bold">
+              {Math.min(englishPage * ENGLISH_PAGE_SIZE, allCategoryMovies.length)}
+            </span>{" "}
+            of <span className="text-amber-400 font-bold">{allCategoryMovies.length}</span> English Movies
           </div>
-          <div className="max-w-md space-y-1">
-            <h3 className="text-sm sm:text-base font-bold text-white">
-              No Movies in {selectedCategory === "indian" ? "Indian Category" : "Selected Category"}
-            </h3>
-            <p className="text-xs text-gray-400 leading-relaxed">
-              Show All Links par click karein ya Admin Portal se naye links add karein.
-            </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setEnglishPage((prev) => Math.max(1, prev - 1));
+                const el = document.getElementById("movie-catalog-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+              disabled={englishPage === 1}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border ${
+                englishPage === 1
+                  ? "bg-white/5 text-neutral-500 border-white/5 cursor-not-allowed"
+                  : "bg-white/10 hover:bg-white/20 text-white border-white/15 cursor-pointer"
+              }`}
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Previous</span>
+            </button>
+
+            <span className="text-xs font-mono text-neutral-300 px-3 py-1.5 rounded-lg bg-black/40 border border-white/10">
+              Page {englishPage} of {totalEnglishPages}
+            </span>
+
+            <button
+              onClick={() => {
+                setEnglishPage((prev) => Math.min(totalEnglishPages, prev + 1));
+                const el = document.getElementById("movie-catalog-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+              disabled={englishPage >= totalEnglishPages}
+              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border ${
+                englishPage >= totalEnglishPages
+                  ? "bg-white/5 text-neutral-500 border-white/5 cursor-not-allowed"
+                  : "bg-amber-500 hover:bg-amber-400 text-black border-amber-400 cursor-pointer shadow-md shadow-amber-500/20"
+              }`}
+            >
+              <span>Next</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            onClick={() => setSelectedCategory("all")}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs uppercase tracking-wider transition-colors shadow-lg shadow-amber-500/20 cursor-pointer"
-          >
-            <span>Show All Links ({items.length})</span>
-          </button>
+        </div>
+      )}
+
+      {/* Continuous / Infinite Scroll Sentinel & Load More button for Indian Movies and Dramas */}
+      {!isLoading && isInfiniteCategory && (
+        <div className="w-full flex flex-col items-center justify-center gap-3 mt-6 sm:mt-8 pt-4 border-t border-white/10">
+          <div ref={sentinelRef} className="h-2 w-full" />
+
+          {infiniteVisibleCount < allCategoryMovies.length ? (
+            <button
+              onClick={() =>
+                setInfiniteVisibleCount((prev) => Math.min(prev + 16, allCategoryMovies.length))
+              }
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 cursor-pointer hover:scale-105"
+            >
+              <ArrowDown className="w-4 h-4" />
+              <span>
+                Load More {CATEGORY_LABELS[selectedCategory]} ({allCategoryMovies.length - infiniteVisibleCount} remaining)
+              </span>
+            </button>
+          ) : (
+            <div className="text-xs text-neutral-500 font-mono py-2">
+              All {allCategoryMovies.length} {CATEGORY_LABELS[selectedCategory]} loaded
+            </div>
+          )}
         </div>
       )}
     </section>

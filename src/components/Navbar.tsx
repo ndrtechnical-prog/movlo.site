@@ -153,7 +153,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
             <div className="flex flex-col">
               <span className="font-lumos text-xl sm:text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-200 to-amber-400 flex items-center">
-                movlo.site
+                Movlo.site
               </span>
               <span className="font-lumos text-[8px] uppercase tracking-widest text-neutral-400 font-semibold hidden sm:inline-block">
                 Cinema Master Feeds

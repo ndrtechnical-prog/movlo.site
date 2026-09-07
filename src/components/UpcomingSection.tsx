@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Film, Calendar, Star, Play, Sparkles, AlertCircle } from "lucide-react";
+import React, { useEffect, useState, useRef } from "react";
+import { Film, Calendar, Star, Play, Sparkles, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { UpcomingMovie, MovieClip } from "../types";
 import { fetchUpcomingTrailers } from "../lib/api";
 
@@ -15,6 +15,7 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({
   const [movies, setMovies] = useState<UpcomingMovie[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -28,7 +29,7 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({
         }
       } catch (err: any) {
         if (isMounted) {
-          setError("Unable to load upcoming trailers at this time.");
+          setError("Unable to load new release movies at this time.");
         }
       } finally {
         if (isMounted) {
@@ -59,40 +60,67 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({
     });
   };
 
+  const scroll = (direction: "left" | "right") => {
+    if (scrollRef.current) {
+      const offset = direction === "left" ? -340 : 340;
+      scrollRef.current.scrollBy({ left: offset, behavior: "smooth" });
+    }
+  };
+
   return (
-    <section id="upcoming" className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <section id="new-release-movies" className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 border-t border-white/5">
       {/* Section Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-4 border-b border-white/10 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 pb-3 border-b border-white/10 gap-3">
         <div>
           <div className="flex items-center gap-2 text-amber-400 text-xs sm:text-sm font-semibold tracking-wider uppercase mb-1">
             <Sparkles className="w-4 h-4" />
-            <span>API Powered Anticipated Titles</span>
+            <span>Official Cinema API System</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
-            <Film className="w-6 h-6 text-amber-400" />
-            UpComing Trailers
+          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
+            <Film className="w-5 h-5 text-amber-400" />
+            New Release Movies
           </h2>
-          <p className="text-sm text-neutral-400 mt-1">
-            The next 5 major upcoming cinematic blockbusters with official ratings & trailers
+          <p className="text-xs text-neutral-400 mt-1">
+            Official theatrical movie trailers from the API release system
           </p>
         </div>
-        <div className="text-xs font-mono text-neutral-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full w-fit">
-          5 Titles Scheduled
+
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="text-xs font-mono text-neutral-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
+            {movies.length} Releases
+          </div>
+          {movies.length > 0 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => scroll("left")}
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-white transition-colors cursor-pointer border border-white/10"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => scroll("right")}
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-white transition-colors cursor-pointer border border-white/10"
+                aria-label="Scroll right"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Loading Skeleton */}
+      {/* Loading Skeleton Strip */}
       {isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5].map((i) => (
+        <div className="flex gap-4 overflow-hidden py-2">
+          {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="animate-pulse bg-neutral-900/60 rounded-2xl p-4 border border-white/5 flex flex-col gap-3"
+              className="w-72 sm:w-80 shrink-0 animate-pulse bg-neutral-900/60 rounded-2xl p-3 border border-white/5 flex flex-col gap-3"
             >
-              <div className="w-full h-48 bg-neutral-800 rounded-xl" />
-              <div className="h-5 bg-neutral-800 rounded w-3/4 mt-2" />
-              <div className="h-4 bg-neutral-800 rounded w-1/2" />
-              <div className="h-10 bg-neutral-800 rounded-lg mt-auto" />
+              <div className="w-full h-40 bg-neutral-800 rounded-xl" />
+              <div className="h-4 bg-neutral-800 rounded w-3/4" />
+              <div className="h-3 bg-neutral-800 rounded w-1/2" />
             </div>
           ))}
         </div>
@@ -106,17 +134,20 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({
         </div>
       )}
 
-      {/* 5 Upcoming Movies Showcase */}
+      {/* Single Horizontal Strip / Row */}
       {!isLoading && !error && movies.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {movies.map((movie, idx) => (
+        <div
+          ref={scrollRef}
+          className="flex items-stretch gap-4 sm:gap-5 overflow-x-auto no-scrollbar pb-3 pt-1 snap-x snap-mandatory"
+        >
+          {movies.map((movie) => (
             <div
               key={movie.id}
-              id={`upcoming-card-${movie.id}`}
-              className="group relative flex flex-col bg-[#0b0c10] border border-white/10 hover:border-amber-500/50 rounded-2xl overflow-hidden shadow-lg hover:shadow-amber-500/10 transition-all duration-300"
+              id={`new-release-${movie.id}`}
+              className="group relative w-72 sm:w-80 shrink-0 flex flex-col bg-[#0b0c10] border border-white/10 hover:border-amber-500/50 rounded-2xl overflow-hidden shadow-lg hover:shadow-amber-500/10 transition-all duration-300 snap-start"
             >
               {/* Poster Backdrop with Play Overlay */}
-              <div className="relative w-full h-52 overflow-hidden bg-neutral-900">
+              <div className="relative w-full h-44 overflow-hidden bg-neutral-900">
                 <img
                   src={movie.backdrop || movie.poster}
                   alt={movie.title}
@@ -129,65 +160,64 @@ export const UpcomingSection: React.FC<UpcomingSectionProps> = ({
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0b0c10] via-black/40 to-transparent" />
 
                 {/* Rating Badge */}
-                <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/80 backdrop-blur-md text-amber-400 border border-amber-500/30 text-xs font-bold px-2.5 py-1 rounded-lg shadow">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-black/80 backdrop-blur-md text-amber-400 border border-amber-500/30 text-[11px] font-bold px-2 py-0.5 rounded-md shadow">
+                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                   <span>{movie.rating.toFixed(1)}</span>
-                  <span className="text-[10px] text-neutral-400 font-normal">/ 10</span>
                 </div>
 
                 {/* Release Date Badge */}
-                <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/80 backdrop-blur-md text-neutral-200 border border-white/10 text-xs px-2.5 py-1 rounded-lg">
-                  <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                <div className="absolute top-2.5 right-2.5 flex items-center gap-1 bg-black/80 backdrop-blur-md text-neutral-200 border border-white/10 text-[10px] px-2 py-0.5 rounded-md">
+                  <Calendar className="w-3 h-3 text-amber-400" />
                   <span>{movie.releaseDate}</span>
                 </div>
 
                 {/* Center Hover Play Icon */}
                 <button
                   onClick={() => handleTrailerClick(movie)}
-                  className="absolute inset-0 m-auto w-12 h-12 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-2xl opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
+                  className="absolute inset-0 m-auto w-11 h-11 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-xl opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300 cursor-pointer"
                   title="Play Official Trailer"
                 >
-                  <Play className="w-5 h-5 fill-current ml-0.5" />
+                  <Play className="w-4 h-4 fill-current ml-0.5" />
                 </button>
               </div>
 
               {/* Movie Info */}
-              <div className="p-5 flex-1 flex flex-col justify-between gap-4">
+              <div className="p-4 flex-1 flex flex-col justify-between gap-3">
                 <div>
-                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                    {movie.genres.slice(0, 3).map((g) => (
+                  <div className="flex flex-wrap items-center gap-1 mb-1.5">
+                    {movie.genres?.slice(0, 2).map((g) => (
                       <span
                         key={g}
-                        className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-white/5 border border-white/10 text-neutral-300"
+                        className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-neutral-300"
                       >
                         {g}
                       </span>
                     ))}
                   </div>
 
-                  <h3 className="text-lg font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-1">
+                  <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-1">
                     {movie.title}
                   </h3>
 
-                  <p className="text-xs text-neutral-400 mt-2 line-clamp-3 leading-relaxed">
+                  <p className="text-[11px] text-neutral-400 mt-1 line-clamp-2 leading-relaxed">
                     {movie.description}
                   </p>
                 </div>
 
                 {/* Footer Action */}
-                <div className="pt-3 border-t border-white/5 flex items-center justify-between gap-2">
+                <div className="pt-2.5 border-t border-white/5 flex items-center justify-between gap-2">
                   <button
                     onClick={() => handleTrailerClick(movie)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs py-2.5 px-4 rounded-xl transition-colors shadow-md"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs py-2 px-3 rounded-lg transition-colors shadow-md cursor-pointer"
                   >
-                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <Play className="w-3 h-3 fill-current" />
                     <span>Watch Trailer</span>
                   </button>
 
                   {onSelectMovie && (
                     <button
                       onClick={() => onSelectMovie(movie.id)}
-                      className="inline-flex items-center justify-center bg-white/10 hover:bg-white/20 text-neutral-200 text-xs py-2.5 px-3 rounded-xl transition-colors"
+                      className="inline-flex items-center justify-center bg-white/10 hover:bg-white/20 text-neutral-200 text-xs py-2 px-2.5 rounded-lg transition-colors cursor-pointer"
                       title="More Movie Details"
                     >
                       Details

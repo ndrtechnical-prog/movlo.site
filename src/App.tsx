@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { Navbar } from "./components/Navbar";
 import { HeroSection } from "./components/HeroSection";
 import { UpcomingSection } from "./components/UpcomingSection";
 import { AdBannerCard } from "./components/AdBannerCard";
@@ -10,11 +11,12 @@ import { MovieDetailsModal } from "./components/MovieDetailsModal";
 import { AdminPortalModal } from "./components/AdminPortalModal";
 import { AdminKeyPromptModal } from "./components/AdminKeyPromptModal";
 import { Footer } from "./components/Footer";
+import { MonetagPromoBanner } from "./components/MonetagPromoBanner";
+import { MonetagStickyBar } from "./components/MonetagStickyBar";
 import { Movie, MovieClip, AdBanner } from "./types";
 import {
   fetchRecentWatchedMovies,
   recordMovieWatch,
-  fetchRecentAdded24h,
   RecentAddedItem,
   recordAdClick,
   fetchActiveAds,
@@ -22,15 +24,22 @@ import {
 } from "./lib/api";
 import { resetDefaultMetadata } from "./lib/metaManager";
 import { useWatchlist } from "./lib/watchlist";
+import {
+  MovieCategory,
+  JsonMovie,
+  jsonMovieToMovie
+} from "./lib/jsonMovies";
+import {
+  getStoredRecentlyWatched,
+  saveRecentlyWatched
+} from "./lib/recentlyWatched";
+import { maybeTriggerMonetagOnAction } from "./lib/monetag";
 
 export default function App() {
-  // 3 Primary Homepage Sections Data:
-  // 1. Recent Added (Last 24 Hours Only: Bulk Links, Single Links & Ads Links)
-  const [recentAddedItems, setRecentAddedItems] = useState<RecentAddedItem[]>([]);
-  const [isRecentLoading, setIsRecentLoading] = useState(true);
-  const [recentError, setRecentError] = useState<string | null>(null);
+  // Movie category navigation state (English Movies is the default first page)
+  const [selectedCategory, setSelectedCategory] = useState<MovieCategory>("english");
 
-  // 2. Recent Watch (Movies currently / recently being watched)
+  // Recently Watched state (Loaded from & synced to local persistence)
   const [recentWatchedMovies, setRecentWatchedMovies] = useState<Movie[]>([]);
   const [isRecentWatchedLoading, setIsRecentWatchedLoading] = useState(true);
   const [recentWatchedError, setRecentWatchedError] = useState<string | null>(null);
@@ -72,7 +81,7 @@ export default function App() {
   }, []);
 
   // Region
-  const [currentRegion] = useState("US");
+  const [currentRegion, setCurrentRegion] = useState("US");
 
   // Client Session ID for presence tracking
   const [sessionId] = useState(() => {
@@ -92,7 +101,7 @@ export default function App() {
     const reportPresence = () => {
       pingPresence({
         sessionId,
-        movieTitle: activeClip?.movieTitle || recentAddedItems[0]?.title || undefined,
+        movieTitle: activeClip?.movieTitle || undefined,
         clipTitle: activeClip?.clipTitle || undefined,
         isPlaying: Boolean(activeClip),
         device: window.innerWidth < 768 ? "Mobile" : "Desktop",
@@ -103,50 +112,37 @@ export default function App() {
     reportPresence();
     const timer = setInterval(reportPresence, 12000);
     return () => clearInterval(timer);
-  }, [sessionId, activeClip, recentAddedItems]);
+  }, [sessionId, activeClip]);
 
-  // Load Homepage Data (Recent Added in 24h, Recent Watched, Active Ads)
-  const loadData = useCallback(async () => {
-    setIsRecentLoading(true);
+  // Load Initial Recently Watched from local storage (or fallback to API)
+  const loadWatchedData = useCallback(async () => {
     setIsRecentWatchedLoading(true);
-
     try {
-      // Load active ads
-      fetchActiveAds()
-        .then((data) => setAds(data))
-        .catch(() => setAds([]));
-
-      // Section 1: Recent Added (Last 24 Hours Only: Bulk Links, Single Links & Ads)
-      try {
-        const recentRes = await fetchRecentAdded24h();
-        setRecentAddedItems(recentRes.items);
-        setRecentError(null);
-      } catch (err) {
-        console.warn("Recent added fetch error:", err);
-        setRecentError("Unable to load recently added links.");
-      } finally {
-        setIsRecentLoading(false);
-      }
-
-      // Section 2: Recent Watch (Movies currently / recently watched)
-      try {
+      const stored = getStoredRecentlyWatched();
+      if (stored && stored.length > 0) {
+        setRecentWatchedMovies(stored.map((m, idx) => jsonMovieToMovie(m, idx)));
+        setRecentWatchedError(null);
+      } else {
+        // Fallback to initial sample movies
         const watchedRes = await fetchRecentWatchedMovies();
         setRecentWatchedMovies(watchedRes.movies);
         setRecentWatchedError(null);
-      } catch (err) {
-        console.warn("Recent watched fetch error:", err);
-        setRecentWatchedError("Unable to load recently watched movies.");
-      } finally {
-        setIsRecentWatchedLoading(false);
       }
     } catch (err) {
-      console.error("Home loader error:", err);
+      console.warn("Recent watched fetch error:", err);
+      setRecentWatchedError("Unable to load recently watched movies.");
+    } finally {
+      setIsRecentWatchedLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadWatchedData();
+    // Load active ads
+    fetchActiveAds()
+      .then((data) => setAds(data))
+      .catch(() => setAds([]));
+  }, [loadWatchedData]);
 
   // Check URL on load for direct /movie/:id route
   useEffect(() => {
@@ -173,17 +169,34 @@ export default function App() {
 
   // Movie details modal handlers
   const openMovie = (id: number) => {
+    // If the movie in recently watched has a direct YouTube video link, play it!
+    const matched = recentWatchedMovies.find((m) => m.id === id);
+    if (matched && matched.trailer) {
+      openClip({
+        id: String(matched.id),
+        movieId: matched.id,
+        movieTitle: matched.title,
+        clipTitle: matched.title,
+        videoUrl: matched.trailer,
+        thumbnail: matched.backdrop || matched.poster,
+        poster: matched.poster,
+        year: matched.year,
+        rating: matched.userRating || 9.2,
+        genre: matched.genres?.[0] || "Cinema"
+      });
+      return;
+    }
+
     setActiveMovieId(id);
     window.history.pushState({ movieId: id }, "", `/movie/${id}`);
 
     // Track real movie watch event
-    const matched = recentWatchedMovies.find((m) => m.id === id);
     recordMovieWatch({
       id,
       title: matched?.title || `Movie ${id}`,
       poster: matched?.poster,
       backdrop: matched?.backdrop,
-      rating: matched?.rating,
+      rating: matched?.userRating,
       year: matched?.year,
       quality: "4K UHD"
     });
@@ -223,24 +236,13 @@ export default function App() {
       thumbnail: thumb,
       poster: clip.poster || thumb,
       backdrop: clip.backdrop || thumb,
-      duration: clip.duration || "3:30",
+      duration: clip.duration || "Full Movie",
       quality: qualityVal,
-      genre: clip.genre || "Action",
-      genres: clip.genres || [clip.genre || "Action", "Cinema"],
+      genre: clip.genre || "Cinema",
+      genres: clip.genres || ["Cinema", "Feature"],
       year: clip.year || 2026,
-      views: clip.views || 60000,
-      likes: clip.likes || 3200,
       rating: clip.rating || 9.2,
-      description: clip.description || `High definition ${qualityVal} video.`,
-      isTrending: clip.isTrending ?? true,
-      isMostWatched: clip.isMostWatched ?? false,
-      publishedAt: clip.publishedAt || new Date().toISOString(),
-      tags: clip.tags || ["movie", "cinema", "stream"],
-      seo: clip.seo || {
-        title: `${clip.movieTitle || "Movie"} - 4K Video`,
-        description: `Watch ${clip.clipTitle || "Video"} in high definition.`,
-        keywords: ["movie", "4k", "scene"]
-      }
+      description: clip.description || "Movlo High Definition Stream"
     });
   };
 
@@ -248,7 +250,35 @@ export default function App() {
     setActiveClip(null);
   };
 
-  // Handle click on 24h Recent Added Card (Movie Card Style)
+  // Handle Play directly from JSON Movie (Global Search or Hero)
+  const handlePlayJsonMovie = (movie: JsonMovie) => {
+    // Add to Recently Watched with local persistence
+    const updated = saveRecentlyWatched(movie);
+    setRecentWatchedMovies(updated.map((m, idx) => jsonMovieToMovie(m, idx)));
+
+    // Smart Monetag monetization action
+    maybeTriggerMonetagOnAction();
+
+    openClip({
+      id: movie.id,
+      movieId: 0,
+      movieTitle: movie.title,
+      clipTitle: movie.fullTitle || movie.title,
+      videoUrl: movie.videoUrl,
+      thumbnail: movie.thumbnail || movie.poster,
+      poster: movie.poster || movie.thumbnail,
+      backdrop: movie.backdrop || movie.thumbnail || movie.poster,
+      duration: movie.duration || "Full Movie",
+      quality: (movie.quality === "720p HD" || movie.quality === "4K UHD" ? movie.quality : "1080p HD"),
+      genre: movie.genre || "Cinema",
+      genres: movie.genres || [movie.genre || "Cinema"],
+      year: movie.year || 2026,
+      rating: movie.rating || 9.2,
+      description: movie.description
+    });
+  };
+
+  // Handle click on Movie Card in the Catalog
   const handleSelectRecentItem = (item: RecentAddedItem) => {
     if (item.itemType === "ad_link" || item.isAd) {
       if (item.targetUrl) {
@@ -256,7 +286,32 @@ export default function App() {
         window.open(item.targetUrl, "_blank", "noopener,noreferrer");
       }
     } else {
-      // It's a single or bulk video link: play in high quality cinema player
+      const jsonMovie: JsonMovie = {
+        id: item.id,
+        title: item.title,
+        fullTitle: item.subtitle,
+        videoUrl: item.videoUrl || "",
+        thumbnail: item.poster,
+        poster: item.poster,
+        backdrop: item.backdrop || item.poster,
+        duration: item.duration || "Full Movie",
+        quality: item.quality || "4K UHD",
+        genre: item.genre || "Cinema",
+        genres: item.genres || ["Cinema", "Feature"],
+        year: item.year || 2026,
+        views: item.views || 60000,
+        rating: item.rating || 9.2,
+        description: item.description,
+        category: selectedCategory
+      };
+
+      // Add to Recently Watched with local persistence
+      const updated = saveRecentlyWatched(jsonMovie);
+      setRecentWatchedMovies(updated.map((m, idx) => jsonMovieToMovie(m, idx)));
+
+      // Smart Monetag action trigger
+      maybeTriggerMonetagOnAction();
+
       openClip({
         id: item.id,
         movieId: 0,
@@ -266,14 +321,14 @@ export default function App() {
         thumbnail: item.poster,
         poster: item.poster,
         backdrop: item.backdrop || item.poster,
-        duration: item.duration || "3:30",
+        duration: item.duration || "Full Movie",
         quality: (item.quality === "1080p HD" || item.quality === "720p HD" ? item.quality : "4K UHD"),
-        genre: item.genre || "Action",
-        genres: item.genres || ["Action", "Cinema"],
+        genre: item.genre || "Cinema",
+        genres: item.genres || ["Cinema"],
         year: item.year || 2026,
         views: item.views || 60000,
         rating: item.rating || 9.2,
-        description: item.description || "Added via MOVLO Admin"
+        description: item.description || "Movlo Cinema Stream"
       });
     }
   };
@@ -281,44 +336,77 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#07080c] text-neutral-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] selection:bg-amber-400 selection:text-black">
       {/* 
-        HEADER & HEROIC DISPLAY:
-        - Clean branding with only movlo.site
-        - Heroic display video loop (https://pub-71159ab780504d0d9a5d3e5b1180c623.r2.dev/others/Movie_site_heroic_poster_design_202609041454.mp4)
-        - Top corner API search bar that live queries movies
+        HEADER:
+        - Displays movie-site branding/title: Movlo.site
+        - Preserves existing navigation and styling
+      */}
+      <Navbar
+        onSelectMovie={openMovie}
+        onPlayClip={openClip}
+        currentRegion={currentRegion}
+        onRegionChange={setCurrentRegion}
+        hasApiKey={true}
+        onNavigateSection={(sectionId) => {
+          const el = document.getElementById(sectionId);
+          if (el) el.scrollIntoView({ behavior: "smooth" });
+        }}
+        onOpenAdmin={() => setIsKeyPromptOpen(true)}
+      />
+
+      {/* 
+        HERO SECTION:
+        - Directly below the header: Premium-looking search bar querying all JSON datasets
+        - Directly under the search bar: 5 category navigation buttons (English, Indian, Chinese, Dramas, Others)
+        - Over the hero video loop without obstructing key visuals
+        - Center Movlo.site branding
       */}
       <HeroSection
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        onPlayJsonMovie={handlePlayJsonMovie}
         onSelectMovie={openMovie}
         onPlayClip={openClip}
         watchlistCount={watchlist.length}
         onTriggerAdminKey={() => setIsKeyPromptOpen(true)}
       />
 
-      {/* Active Ads (If published by Admin with uploaded poster & redirection link) */}
-      {ads.length > 0 && (
+      {/* Active Ads or Monetag Revenue Banner */}
+      {ads.length > 0 ? (
         <div className="w-full">
           {ads.map((ad) => (
             <AdBannerCard key={ad.id} ad={ad} />
           ))}
         </div>
+      ) : (
+        <MonetagPromoBanner />
       )}
 
       {/* PRIMARY APPLICATION SECTIONS */}
       <main className="flex-1 w-full flex flex-col">
         {/* 
-          SECTION 1: Recent Added (Only links added in the last 24 hours: Bulk, Single, Ads)
+          MOVIE CATEGORY CATALOG:
+          - Automatically reads from the respective JSON file:
+            • English Movies (initial 8 movies, paginated without full page reload)
+            • Indian Movies (infinite / continuous scrolling of all ~100 movies)
+            • Chinese Movies, Dramas, Others
+          - Reuses existing 16:9 movie-card design
         */}
-        <div id="recent-added" className="pt-4">
+        <div id="recent-added" className="pt-2">
           <RecentAddedSection
-            items={recentAddedItems}
-            isLoading={isRecentLoading}
-            error={recentError}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
             onSelectItem={handleSelectRecentItem}
-            onRetry={loadData}
           />
         </div>
 
+        {/* Monetag In-Feed Midpoint High-Yield Banner */}
+        <MonetagPromoBanner />
+
         {/* 
-          SECTION 2: Recent Watch (Movies currently / recently watched)
+          RECENTLY WATCHED SECTION:
+          - Automatically populated when a user watches/opens any movie
+          - Stored in localStorage so it remains after navigating between categories
+          - Uses existing Recently Watched UI
         */}
         <div id="recent-watch" className="pt-4">
           <div id="most-watched" />
@@ -327,7 +415,7 @@ export default function App() {
             isLoading={isRecentWatchedLoading}
             error={recentWatchedError}
             onSelectMovie={openMovie}
-            onRetry={loadData}
+            onRetry={loadWatchedData}
           />
         </div>
 
@@ -350,7 +438,10 @@ export default function App() {
         </div>
 
         {/* 
-          SECTION 3: UpComing Trailers (API-Called 5 Upcoming Movies with Ratings)
+          NEW RELEASE MOVIES (API / TMDB MOVIES SECTION):
+          - Only location where API/TMDB movies appear
+          - Displayed as a single horizontal strip / row
+          - Plays official movie trailers
         */}
         <div id="upcoming-trailers" className="pt-4">
           <UpcomingSection
@@ -370,46 +461,42 @@ export default function App() {
             closeClip();
             openMovie(mId);
           }}
-          relatedClips={[]}
         />
       )}
 
-      {/* Movie Details Modal (/movie/:id) */}
+      {/* Full Movie Details Modal */}
       {activeMovieId && (
         <MovieDetailsModal
           movieId={activeMovieId}
-          region={currentRegion}
           onClose={closeMovie}
-          onSelectMovie={openMovie}
+          onPlayTrailer={(clip) => openClip(clip)}
+          onSelectRelatedMovie={(rId) => openMovie(rId)}
         />
       )}
 
-      {/* Admin Key Prompt Modal (Triggered by 5-second press on MOVLO heading or Ctrl+Shift+A) */}
+      {/* Secret Admin Key Prompt Modal (Password: 77490869) */}
       <AdminKeyPromptModal
         isOpen={isKeyPromptOpen}
         onClose={() => setIsKeyPromptOpen(false)}
         onSuccess={handleAdminKeySuccess}
       />
 
-      {/* Admin Portal Modal (PIN / Key: 77490869) */}
+      {/* Secret Admin Portal Modal */}
       <AdminPortalModal
         isOpen={isAdminOpen}
         onClose={() => {
           setIsAdminOpen(false);
           setIsAdminPreVerified(false);
         }}
-        onClipsUpdated={loadData}
+        onDataUpdated={loadWatchedData}
         isPreVerified={isAdminPreVerified}
       />
 
+      {/* Monetag Floating Bottom Revenue Bar */}
+      <MonetagStickyBar />
+
       {/* Footer */}
-      <Footer
-        onNavigateSection={(id) => {
-          const el = document.getElementById(id);
-          if (el) el.scrollIntoView({ behavior: "smooth" });
-        }}
-        onTriggerAdminKey={() => setIsKeyPromptOpen(true)}
-      />
+      <Footer />
     </div>
   );
 }
