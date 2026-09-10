@@ -60,6 +60,18 @@
   </head>
   <body class="bg-[#07080c] text-neutral-100 antialiased selection:bg-amber-400 selection:text-black min-h-screen">
     <div id="root"></div>
+    <!-- Monetag Push & In-Page Verification Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker
+            .register('/sw.js', { scope: '/' })
+            .catch(function (err) {
+              console.log('SW Note:', err);
+            });
+        });
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
