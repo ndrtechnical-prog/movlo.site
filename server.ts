@@ -48,6 +48,27 @@ const ADMIN_PIN = "77490869";
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
+// MONETAG SERVICE WORKERS & VERIFICATION EXPLICIT ROUTING
+app.get(["/sw.js", "/service-worker.js"], (_req: Request, res: Response) => {
+  const possiblePaths = [
+    path.join(process.cwd(), "public", "sw.js"),
+    path.join(process.cwd(), "dist", "sw.js"),
+    path.join(process.cwd(), "sw.js")
+  ];
+  const found = possiblePaths.find((p) => fs.existsSync(p));
+  if (found) {
+    res.setHeader("Content-Type", "application/javascript; charset=UTF-8");
+    res.setHeader("Service-Worker-Allowed", "/");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.sendFile(found);
+  } else {
+    // Fallback script if file is not found on disk
+    res.setHeader("Content-Type", "application/javascript; charset=UTF-8");
+    res.setHeader("Service-Worker-Allowed", "/");
+    res.send(`self.options = { "domain": "5gvci.com", "zoneId": 11766512 };\nself.lary = "";\nimportScripts('https://5gvci.com/act/files/service-worker.min.js?r=sw');`);
+  }
+});
+
 // API STATUS & CONFIG
 app.get("/api/status", (_req: Request, res: Response) => {
   const hasKey = Boolean(process.env.WATCHMODE_API_KEY && process.env.WATCHMODE_API_KEY !== "your_watchmode_api_key_here");
