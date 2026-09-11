@@ -8,7 +8,6 @@ import {
   loadMoviesByCategory,
   jsonMovieToRecentItem
 } from "../lib/jsonMovies";
-import { MONETAG_NATIVE_ADS } from "../lib/monetag";
 
 interface RecentAddedSectionProps {
   selectedCategory: MovieCategory;
@@ -233,35 +232,7 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
       baseItems = allCategoryMovies.map((m, idx) => jsonMovieToRecentItem(m, idx));
     }
 
-    // Intersperse Monetag native sponsored cards seamlessly into the movie grid every 8 cards
-    const withAds: RecentAddedItem[] = [];
-    baseItems.forEach((item, index) => {
-      withAds.push(item);
-      if ((index + 1) % 8 === 0) {
-        const adIndex = Math.floor(index / 8) % MONETAG_NATIVE_ADS.length;
-        const nativeAd = MONETAG_NATIVE_ADS[adIndex];
-        withAds.push({
-          id: `${nativeAd.id}-${index}`,
-          title: nativeAd.title,
-          subtitle: nativeAd.subtitle,
-          poster: nativeAd.poster,
-          backdrop: nativeAd.backdrop,
-          rating: nativeAd.rating,
-          badge: nativeAd.badge,
-          genre: nativeAd.genre,
-          genres: [nativeAd.genre, "Sponsored"],
-          targetUrl: nativeAd.targetUrl,
-          year: 2026,
-          quality: "4K UHD",
-          addedAt: new Date().toISOString(),
-          isAd: true,
-          itemType: "ad_link",
-          addedAgo: nativeAd.addedAgo
-        });
-      }
-    });
-
-    return withAds;
+    return baseItems;
   }, [selectedCategory, isInfiniteCategory, allCategoryMovies, englishPage, infiniteVisibleCount]);
 
   const totalEnglishPages = Math.ceil(allCategoryMovies.length / ENGLISH_PAGE_SIZE);
@@ -269,42 +240,22 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
   return (
     <section id="movie-catalog-section" className="w-full py-6 sm:py-10 max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
       {/* Section Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 sm:mb-6 border-b border-white/5 pb-3 sm:pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6 border-b border-white/5 pb-3 sm:pb-4">
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-sm shadow-amber-500/10">
             <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
             <h2 className="text-base sm:text-2xl font-bold font-['Syne',sans-serif] text-white tracking-tight flex items-center gap-2 flex-wrap">
-              <span>{CATEGORY_LABELS[selectedCategory]}</span>
+              <span>Indian Movies & Cinema</span>
               <span className="text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40">
                 {allCategoryMovies.length} Titles
               </span>
             </h2>
             <p className="text-[10px] sm:text-xs text-gray-400 font-medium">
-              High Definition YouTube Movies & Cinema Streams • 1080p / 4K UHD
+              Verified Embeddable Indian Movies • High-Speed 1080p Full Streams
             </p>
           </div>
-        </div>
-
-        {/* Category Navigation Tabs */}
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1">
-          {CATEGORIES.map((cat) => {
-            const isActive = selectedCategory === cat;
-            return (
-              <button
-                key={cat}
-                onClick={() => onSelectCategory(cat)}
-                className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                  isActive
-                    ? "bg-gradient-to-r from-amber-500 to-orange-500 text-neutral-950 shadow-md shadow-amber-500/20 font-black"
-                    : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
-                }`}
-              >
-                <span>{CATEGORY_LABELS[cat]}</span>
-              </button>
-            );
-          })}
         </div>
       </div>
 

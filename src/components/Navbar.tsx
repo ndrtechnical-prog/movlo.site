@@ -189,8 +189,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right side: Search bar + Region Selector */}
         <div className="flex items-center gap-3 sm:gap-4 flex-1 justify-end max-w-md">
-          {/* Search container */}
-          <div ref={searchContainerRef} className="relative flex-1 max-w-xs sm:max-w-sm">
+          {/* Search container - compact & hidden on mobile when at the top so Hero search bar is clean */}
+          <div
+            ref={searchContainerRef}
+            className={`relative flex-1 max-w-xs sm:max-w-sm transition-all duration-300 ${
+              isScrolled
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 sm:opacity-90 pointer-events-none sm:pointer-events-auto -translate-y-1 sm:translate-y-0"
+            }`}
+          >
             <div className="relative flex items-center">
               <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-3.5 pointer-events-none" />
               <input

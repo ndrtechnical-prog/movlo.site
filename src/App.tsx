@@ -36,8 +36,8 @@ import {
 import { maybeTriggerMonetagOnAction } from "./lib/monetag";
 
 export default function App() {
-  // Movie category navigation state (English Movies is the default first page)
-  const [selectedCategory, setSelectedCategory] = useState<MovieCategory>("english");
+  // Movie category navigation state (Indian Movies is the default first page)
+  const [selectedCategory, setSelectedCategory] = useState<MovieCategory>("indian");
 
   // Recently Watched state (Loaded from & synced to local persistence)
   const [recentWatchedMovies, setRecentWatchedMovies] = useState<Movie[]>([]);
@@ -369,17 +369,6 @@ export default function App() {
         watchlistCount={watchlist.length}
         onTriggerAdminKey={() => setIsKeyPromptOpen(true)}
       />
-
-      {/* Active Ads or Monetag Revenue Banner */}
-      {ads.length > 0 ? (
-        <div className="w-full">
-          {ads.map((ad) => (
-            <AdBannerCard key={ad.id} ad={ad} />
-          ))}
-        </div>
-      ) : (
-        <MonetagPromoBanner />
-      )}
 
       {/* PRIMARY APPLICATION SECTIONS */}
       <main className="flex-1 w-full flex flex-col">

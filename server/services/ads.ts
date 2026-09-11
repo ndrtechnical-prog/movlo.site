@@ -15,18 +15,7 @@ export interface AdBanner {
 const DATA_DIR = path.join(process.cwd(), "server", "data");
 const ADS_FILE = path.join(DATA_DIR, "ads.json");
 
-const DEFAULT_ADS: AdBanner[] = [
-  {
-    id: "ad-movlo-partner-1",
-    title: "Watch VIP 4K Premiere Stream Direct",
-    posterUrl: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1280&auto=format&fit=crop&q=80",
-    targetUrl: "https://movlo.site",
-    tag: "SPONSORED",
-    active: true,
-    clicks: 42,
-    createdAt: new Date().toISOString()
-  }
-];
+const DEFAULT_ADS: AdBanner[] = [];
 
 async function ensureDataDir(): Promise<void> {
   try {

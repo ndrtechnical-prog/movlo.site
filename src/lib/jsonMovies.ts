@@ -65,7 +65,7 @@ export async function loadAllJsonMovies(): Promise<JsonMovie[]> {
     return ALL_MOVIES_CACHE;
   }
 
-  const categories: MovieCategory[] = ["english", "indian", "chinese", "dramas", "others"];
+  const categories: MovieCategory[] = ["indian", "english", "chinese", "dramas", "others"];
   const lists = await Promise.all(categories.map((cat) => loadMoviesByCategory(cat)));
   const combined = lists.flat();
   ALL_MOVIES_CACHE = combined;
