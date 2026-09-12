@@ -1,7 +1,11 @@
 // Monetag Ad Network Configuration & High-Revenue Placement Engine
-// Uses the 10 official Monetag Direct Links / SmartLinks provided by the user
+// Uses the official Monetag Direct Links / SmartLinks provided by the user
+
+// Primary featured ad link requested by user (Zone 11782278)
+export const FEATURED_DIRECT_AD_LINK = "https://omg10.com/4/11782278";
 
 export const MONETAG_LINKS: string[] = [
+  "https://omg10.com/4/11782278", // User requested primary high-conversion link
   "https://omg10.com/4/9831191",
   "https://omg10.com/4/9831203",
   "https://omg10.com/4/9831194",

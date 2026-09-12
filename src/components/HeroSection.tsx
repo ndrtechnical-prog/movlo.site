@@ -8,10 +8,10 @@ interface HeroSectionProps {
   onSelectMovie: (id: number) => void;
   onPlayClip?: (clip: Partial<MovieClip>) => void;
   onPlayJsonMovie?: (movie: JsonMovie) => void;
+  onExploreSeries?: (seriesId: string) => void;
   selectedCategory: MovieCategory;
   onSelectCategory: (category: MovieCategory) => void;
   watchlistCount?: number;
-  onTriggerAdminKey?: () => void;
 }
 
 const HEROIC_DISPLAY_VIDEO =
@@ -20,68 +20,19 @@ const HEROIC_DISPLAY_VIDEO =
 const HEROIC_BACKDROP_FALLBACK =
   "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1920&auto=format&fit=crop&q=85";
 
-const CATEGORIES: MovieCategory[] = ["english", "indian", "chinese", "dramas", "others"];
+const CATEGORIES: MovieCategory[] = ["english", "indian", "chinese", "dramas", "historical", "others"];
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onSelectMovie,
   onPlayClip,
   onPlayJsonMovie,
+  onExploreSeries,
   selectedCategory,
   onSelectCategory,
-  watchlistCount = 0,
-  onTriggerAdminKey
+  watchlistCount = 0
 }) => {
   const [videoLoaded, setVideoLoaded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  // 5-second long press on movlo heading for Admin Access Key
-  const [isPressing, setIsPressing] = useState(false);
-  const [pressProgress, setPressProgress] = useState(0);
-  const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const pressIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const pressStartTimeRef = useRef<number>(0);
-
-  const startPress = () => {
-    setIsPressing(true);
-    setPressProgress(0);
-    pressStartTimeRef.current = Date.now();
-
-    pressIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - pressStartTimeRef.current;
-      const pct = Math.min(100, (elapsed / 5000) * 100);
-      setPressProgress(pct);
-    }, 40);
-
-    pressTimerRef.current = setTimeout(() => {
-      if (pressIntervalRef.current) clearInterval(pressIntervalRef.current);
-      setIsPressing(false);
-      setPressProgress(0);
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(100);
-      }
-      onTriggerAdminKey?.();
-    }, 5000);
-  };
-
-  const cancelPress = () => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
-    if (pressIntervalRef.current) {
-      clearInterval(pressIntervalRef.current);
-      pressIntervalRef.current = null;
-    }
-    setIsPressing(false);
-    setPressProgress(0);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
-      if (pressIntervalRef.current) clearInterval(pressIntervalRef.current);
-    };
-  }, []);
 
   // Premium Global Search state querying all local JSON files
   const [searchQuery, setSearchQuery] = useState("");
@@ -158,6 +109,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const handleMovieClick = (movie: JsonMovie) => {
     setIsSearchOpen(false);
     setSearchQuery("");
+    if (movie.isSeries && movie.seriesId && onExploreSeries) {
+      onExploreSeries(movie.seriesId);
+      return;
+    }
     if (onPlayJsonMovie) {
       onPlayJsonMovie(movie);
     } else {
@@ -214,38 +169,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         <div className="relative inline-block select-none my-2">
           <h1
             id="hero-movlo-heading"
-            onMouseDown={startPress}
-            onMouseUp={cancelPress}
-            onMouseLeave={cancelPress}
-            onTouchStart={startPress}
-            onTouchEnd={cancelPress}
-            onTouchCancel={cancelPress}
-            onContextMenu={(e) => e.preventDefault()}
-            className={`text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 drop-shadow-[0_0_35px_rgba(245,158,11,0.65)] cursor-pointer select-none transition-all duration-300 ${
-              isPressing
-                ? "scale-[0.98] drop-shadow-[0_0_50px_rgba(245,158,11,0.9)] brightness-125"
-                : "hover:brightness-110"
-            }`}
-            title="Press and hold 5 seconds to unlock Admin Portal"
+            className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 drop-shadow-[0_0_35px_rgba(245,158,11,0.65)] select-none transition-all duration-300 hover:brightness-110"
+            title="Movlo.site — Stream Free Movies & Trailers"
           >
             Movlo<span className="text-amber-300">.site</span>
           </h1>
-
-          {/* 5-second press progress indicator for secret admin */}
-          {isPressing && (
-            <div className="absolute left-1/2 -translate-x-1/2 -bottom-10 sm:-bottom-12 flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-black/95 border border-amber-500/70 backdrop-blur-xl shadow-2xl shadow-amber-500/30 z-30 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-              <span className="text-[11px] font-mono text-amber-300 font-semibold tracking-wide">
-                Holding for Admin: {Math.max(0, (5 - (pressProgress * 5) / 100)).toFixed(1)}s
-              </span>
-              <div className="w-16 sm:w-20 h-1.5 bg-neutral-800 rounded-full overflow-hidden border border-white/10">
-                <div
-                  className="h-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-75 ease-linear"
-                  style={{ width: `${pressProgress}%` }}
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* 2. Sleek Search Bar directly below the name with conditional button visibility */}
@@ -352,6 +280,29 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Category Filter Chips (Directly under search bar) */}
+        <div className="w-full flex items-center justify-center gap-1.5 sm:gap-2.5 mt-3 flex-wrap">
+          {CATEGORIES.map((cat) => {
+            const isActive = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => {
+                  onSelectCategory(cat);
+                  scrollToSection("movie-catalog-section");
+                }}
+                className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer ${
+                  isActive
+                    ? "bg-amber-500 text-black shadow-lg shadow-amber-500/25 scale-105 border border-amber-400 font-black"
+                    : "bg-black/50 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/15 backdrop-blur-md"
+                }`}
+              >
+                <span>{CATEGORY_LABELS[cat]}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

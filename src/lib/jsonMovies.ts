@@ -1,3 +1,5 @@
+import { DramaSeries, SeriesEpisode, MovieClip } from "../types";
+
 export interface JsonMovie {
   id: string;
   title: string;
@@ -16,27 +18,34 @@ export interface JsonMovie {
   quality?: string;
   channel?: string;
   description?: string;
-  category: "english" | "indian" | "chinese" | "dramas" | "others";
+  category: "english" | "indian" | "chinese" | "dramas" | "historical" | "others";
+  isSeries?: boolean;
+  seriesId?: string;
+  totalEpisodes?: number;
+  episodeNumber?: number;
 }
 
-export type MovieCategory = "english" | "indian" | "chinese" | "dramas" | "others";
+export type MovieCategory = "english" | "indian" | "chinese" | "dramas" | "historical" | "others";
 
 export const CATEGORY_LABELS: Record<MovieCategory, string> = {
   english: "English Movies",
   indian: "Indian Movies",
   chinese: "Chinese Movies",
-  dramas: "Dramas",
+  dramas: "Turkish & Dramas",
+  historical: "Historical Story",
   others: "Others"
 };
 
 const CACHED_DATA: Partial<Record<MovieCategory, JsonMovie[]>> = {};
 let ALL_MOVIES_CACHE: JsonMovie[] | null = null;
+let ALL_SERIES_CACHE: DramaSeries[] | null = null;
 
 const CATEGORY_FILE_MAP: Record<MovieCategory, string> = {
   english: "/data/english-movies.json",
   indian: "/data/indian-movies.json",
   chinese: "/data/chinese-movies.json",
   dramas: "/data/dramas.json",
+  historical: "/data/historical.json",
   others: "/data/others.json"
 };
 
@@ -60,12 +69,31 @@ export async function loadMoviesByCategory(category: MovieCategory): Promise<Jso
   }
 }
 
+export async function loadAllSeries(): Promise<DramaSeries[]> {
+  if (ALL_SERIES_CACHE) return ALL_SERIES_CACHE;
+  try {
+    const res = await fetch("/data/series.json");
+    if (!res.ok) throw new Error("Failed to load series.json");
+    const data: DramaSeries[] = await res.json();
+    ALL_SERIES_CACHE = data;
+    return data;
+  } catch (err) {
+    console.error("Error loading series.json:", err);
+    return [];
+  }
+}
+
+export async function getSeriesById(id: string): Promise<DramaSeries | null> {
+  const all = await loadAllSeries();
+  return all.find((s) => s.id === id) || null;
+}
+
 export async function loadAllJsonMovies(): Promise<JsonMovie[]> {
   if (ALL_MOVIES_CACHE) {
     return ALL_MOVIES_CACHE;
   }
 
-  const categories: MovieCategory[] = ["indian", "english", "chinese", "dramas", "others"];
+  const categories: MovieCategory[] = ["indian", "dramas", "historical", "english", "chinese", "others"];
   const lists = await Promise.all(categories.map((cat) => loadMoviesByCategory(cat)));
   const combined = lists.flat();
   ALL_MOVIES_CACHE = combined;
@@ -87,6 +115,38 @@ export async function searchJsonMovies(query: string): Promise<JsonMovie[]> {
   });
 }
 
+// Convert SeriesEpisode to MovieClip for playing in 4K player
+export function seriesEpisodeToClip(ep: SeriesEpisode, series?: DramaSeries | null): MovieClip {
+  return {
+    id: ep.id,
+    movieId: 0,
+    movieTitle: series?.title || ep.seriesTitle || "Drama Series",
+    clipTitle: ep.title,
+    videoUrl: ep.videoUrl,
+    thumbnail: ep.thumbnail,
+    poster: ep.thumbnail,
+    backdrop: ep.backdrop || series?.backdrop || ep.thumbnail,
+    duration: ep.duration || "Full Episode",
+    year: series?.year || 2024,
+    genre: series?.genre || "Drama",
+    genres: series?.genres || ["Turkish Drama", "Urdu Dubbed"],
+    rating: series?.rating || 9.2,
+    quality: "1080p HD",
+    description: ep.fullTitle || series?.description || `Watch ${ep.title} in HD with Urdu Dubbed.`,
+    views: ep.views || 350000,
+    likes: 12000,
+    isTrending: true,
+    isMostWatched: true,
+    publishedAt: new Date().toISOString(),
+    tags: ["Turkish Drama", "Urdu Dubbed", series?.title || "Drama"],
+    seo: {
+      title: `${ep.title} Urdu Dubbed | Movlo Movies`,
+      description: ep.fullTitle || `Watch ${ep.title} online free in HD on Movlo Movies`,
+      keywords: ["Turkish drama", "Urdu dubbed", ep.title, series?.title || "Drama"]
+    }
+  };
+}
+
 // Helper to map JsonMovie to RecentAddedItem for existing movie card UI
 export function jsonMovieToRecentItem(movie: JsonMovie, index: number = 0): any {
   return {
@@ -104,11 +164,15 @@ export function jsonMovieToRecentItem(movie: JsonMovie, index: number = 0): any 
     genre: movie.genre || CATEGORY_LABELS[movie.category],
     genres: movie.genres || [movie.genre || CATEGORY_LABELS[movie.category], "Cinema"],
     description: movie.description || `Watch ${movie.title} in high definition.`,
-    badge: movie.quality || "4K VIDEO",
+    badge: movie.isSeries ? `${movie.totalEpisodes || ""} EPISODES` : (movie.quality || "4K VIDEO"),
     addedAt: new Date(Date.now() - (index + 1) * 3600000).toISOString(),
     addedAgo: index === 0 ? "Just now" : `${Math.min(24, index + 1)}h ago`,
     views: movie.views || 45000 + index * 1200,
-    isAd: false
+    isAd: false,
+    isSeries: movie.isSeries,
+    seriesId: movie.seriesId,
+    totalEpisodes: movie.totalEpisodes,
+    episodeNumber: movie.episodeNumber
   };
 }
 

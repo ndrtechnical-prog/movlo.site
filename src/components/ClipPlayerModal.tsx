@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { X, ChevronLeft, ChevronRight, Maximize2, Minimize2, Zap, Download, Sparkles, ExternalLink } from "lucide-react";
 import { MovieClip } from "../types";
 import { getCinemaPosterFallback } from "../lib/api";
-import { triggerMonetagLink } from "../lib/monetag";
+import { triggerMonetagLink, FEATURED_DIRECT_AD_LINK } from "../lib/monetag";
 
 interface ClipPlayerModalProps {
   clip: MovieClip | null;
@@ -177,114 +177,146 @@ export const ClipPlayerModal: React.FC<ClipPlayerModalProps> = ({
   return (
     <div
       id="video-player-modal"
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-200 ${
-        isLandscape ? "p-0" : "p-2 sm:p-4 md:p-6"
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-start bg-black/95 backdrop-blur-2xl overflow-y-auto transform-gpu transition-all duration-300 ${
+        isLandscape ? "p-0" : "pt-1 sm:pt-2 pb-8 px-2 sm:px-4"
       }`}
     >
       {/* Click outside backdrop to close (when not in full landscape mode) */}
-      {!isLandscape && <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />}
+      {!isLandscape && (
+        <div
+          className="fixed inset-0 bg-gradient-to-b from-amber-950/25 via-black/85 to-black/98 pointer-events-auto"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Main Full-Size Player Container */}
+      {/* Main Top-Aligned Player Container */}
       <div
-        className={`relative z-10 my-auto flex flex-col items-center transition-all duration-200 ${
+        className={`relative z-10 flex flex-col items-center w-full transition-all duration-300 ${
           isLandscape
             ? "w-screen h-screen max-w-none justify-center bg-black p-0"
-            : "w-full max-w-6xl xl:max-w-7xl"
+            : "max-w-6xl xl:max-w-7xl"
         }`}
       >
-        {/* Top Header Bar: Clean — ONLY Movie Title */}
+        {/* Top Header Bar: VIP Cinema Look */}
         {!isLandscape && (
-          <div className="w-full flex items-center justify-between pb-2 sm:pb-3 px-2 text-left">
-            <h1 className="font-lumos text-base sm:text-xl md:text-2xl font-black text-white tracking-wider truncate">
-              {clip.movieTitle}
-            </h1>
+          <div className="w-full flex items-center justify-between pb-1.5 sm:pb-2.5 px-1 text-left">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 pr-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] sm:text-[11px] font-extrabold tracking-wider uppercase shrink-0 shadow-sm shadow-amber-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                MOVLO 4K
+              </span>
+              <div className="min-w-0 truncate">
+                <h1 className="font-lumos text-sm sm:text-lg md:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-100 to-amber-300 tracking-wider truncate drop-shadow-sm">
+                  {clip.movieTitle}
+                </h1>
+                {clip.clipTitle && clip.clipTitle !== clip.movieTitle && (
+                  <p className="text-[11px] sm:text-xs text-neutral-400 truncate">{clip.clipTitle}</p>
+                )}
+              </div>
+            </div>
 
-            <button
-              onClick={onClose}
-              className="p-2 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-white/10 transition-colors cursor-pointer"
-              title="Close (Esc)"
-              aria-label="Close"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-amber-400/80 font-mono bg-neutral-900/90 px-2.5 py-1 rounded-lg border border-white/10">
+                <Sparkles className="w-3 h-3 text-amber-400" />
+                ULTRA HD 60FPS
+              </span>
+              <button
+                onClick={onClose}
+                className="p-1.5 sm:p-2 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-white/15 hover:border-amber-500/50 transition-all cursor-pointer shadow-lg hover:rotate-90 duration-200"
+                title="Close (Esc)"
+                aria-label="Close Player"
+              >
+                <X className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+              </button>
+            </div>
           </div>
         )}
 
-        {/* 16:9 Full Size Video Player Box with Landscape Button in the Corner */}
-        <div
-          ref={playerBoxRef}
-          className={`relative w-full aspect-video bg-black overflow-hidden shadow-2xl flex items-center justify-center ${
-            isLandscape
-              ? "h-full max-h-screen rounded-none border-0"
-              : "rounded-2xl border border-white/15"
-          }`}
-        >
-          {videoSource.isIframe ? (
-            <iframe
-              src={videoSource.url}
-              title={clip.movieTitle}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              className="w-full h-full border-0"
-            />
-          ) : (
-            <video
-              src={videoSource.url}
-              poster={clip.backdrop || clip.thumbnail || getCinemaPosterFallback(clip.id)}
-              controls
-              autoPlay
-              playsInline
-              className="w-full h-full object-contain"
-            />
+        {/* 16:9 Full Size Video Player Box with Ambient Glow */}
+        <div className="relative w-full group">
+          {/* Ambient Cinema Glow behind the player */}
+          {!isLandscape && (
+            <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-amber-600/20 blur-xl opacity-75 group-hover:opacity-100 transition-opacity pointer-events-none" />
           )}
 
-          {/* Chota sa Corner Option: Landscape / Full Size Toggle */}
-          <button
-            id="landscape-corner-btn"
-            onClick={toggleLandscape}
-            className="absolute bottom-3 right-3 z-30 p-2 sm:p-2.5 rounded-xl bg-black/80 hover:bg-black text-white hover:text-orange-400 border border-white/20 hover:border-orange-500/60 backdrop-blur-md transition-all cursor-pointer shadow-xl flex items-center gap-1.5 text-xs font-semibold group"
-            title={isLandscape ? "Standard Screen" : "Landscape / Fullscreen"}
-            aria-label="Toggle Landscape Mode"
+          <div
+            ref={playerBoxRef}
+            className={`relative w-full aspect-video bg-black overflow-hidden shadow-2xl flex items-center justify-center transform-gpu ${
+              isLandscape
+                ? "h-full max-h-screen rounded-none border-0"
+                : "rounded-2xl sm:rounded-3xl border border-amber-500/30 shadow-[0_10px_50px_rgba(0,0,0,0.9)]"
+            }`}
           >
-            {isLandscape ? (
-              <>
-                <Minimize2 className="w-3.5 h-3.5 text-orange-400" />
-                <span className="hidden sm:inline text-[11px]">Exit Landscape</span>
-              </>
+            {videoSource.isIframe ? (
+              <iframe
+                src={videoSource.url}
+                title={clip.movieTitle}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                loading="eager"
+                className="w-full h-full border-0 transform-gpu"
+              />
             ) : (
-              <>
-                <Maximize2 className="w-3.5 h-3.5 text-orange-400 group-hover:scale-110 transition-transform" />
-                <span className="hidden sm:inline text-[11px]">Landscape</span>
-              </>
+              <video
+                src={videoSource.url}
+                poster={clip.backdrop || clip.thumbnail || getCinemaPosterFallback(clip.id)}
+                controls
+                autoPlay
+                playsInline
+                preload="metadata"
+                className="w-full h-full object-contain transform-gpu"
+              />
             )}
-          </button>
+
+            {/* Corner Option: Landscape / Full Size Toggle */}
+            <button
+              id="landscape-corner-btn"
+              onClick={toggleLandscape}
+              className="absolute bottom-3 right-3 z-30 p-2 sm:p-2.5 rounded-xl bg-black/85 hover:bg-black text-white hover:text-amber-300 border border-white/20 hover:border-amber-500/60 backdrop-blur-md transition-all cursor-pointer shadow-2xl flex items-center gap-1.5 text-xs font-semibold group"
+              title={isLandscape ? "Standard Screen" : "Landscape / Fullscreen"}
+              aria-label="Toggle Landscape Mode"
+            >
+              {isLandscape ? (
+                <>
+                  <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline text-[11px]">Exit Landscape</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline text-[11px]">Landscape</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* Monetag High-Yield Revenue Actions (4K Server 2, Download, VIP Pass) */}
-        <div className="w-full pt-3 flex flex-wrap items-center justify-center gap-2 max-w-lg mx-auto px-2">
+        {/* Monetag High-Yield Revenue Actions (Fast 4K Server, Download, VIP Pass) */}
+        <div className="w-full pt-3.5 flex flex-wrap items-center justify-center gap-2 max-w-xl mx-auto px-2">
           <button
-            onClick={() => triggerMonetagLink()}
-            className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 hover:text-amber-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+            onClick={() => triggerMonetagLink(FEATURED_DIRECT_AD_LINK)}
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/10 hover:from-amber-500/30 hover:to-amber-600/20 border border-amber-500/50 text-amber-300 hover:text-amber-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95"
             title="Fast 4K Server 2"
           >
             <Zap className="w-3.5 h-3.5 text-amber-400 fill-current" />
             <span>Fast Server 2 (4K)</span>
-            <ExternalLink className="w-3 h-3 opacity-70" />
+            <ExternalLink className="w-3 h-3 opacity-75" />
           </button>
 
           <button
-            onClick={() => triggerMonetagLink()}
-            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-neutral-200 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+            onClick={() => triggerMonetagLink(FEATURED_DIRECT_AD_LINK)}
+            className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-neutral-200 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
             title="Download Full HD"
           >
             <Download className="w-3.5 h-3.5 text-amber-400" />
             <span>Download 1080p</span>
-            <ExternalLink className="w-3 h-3 opacity-70" />
+            <ExternalLink className="w-3 h-3 opacity-75" />
           </button>
 
           <button
-            onClick={() => triggerMonetagLink()}
-            className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+            onClick={() => triggerMonetagLink(FEATURED_DIRECT_AD_LINK)}
+            className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
             title="Watch in VIP Cinema"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -292,16 +324,60 @@ export const ClipPlayerModal: React.FC<ClipPlayerModalProps> = ({
           </button>
         </div>
 
-        {/* Neche Controls: Previous | Close Center Me | Next */}
-        <div className="w-full pt-3 sm:pt-5 flex items-center justify-between max-w-lg mx-auto px-4">
+        {/* Related Clips / Episodes Quick Carousel */}
+        {relatedClips.length > 1 && !isLandscape && (
+          <div className="w-full mt-4 pt-3 border-t border-white/10">
+            <div className="flex items-center justify-between px-1 mb-2">
+              <span className="text-xs font-bold text-neutral-300 flex items-center gap-1.5 uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                Episodes / More Videos ({relatedClips.length})
+              </span>
+              <span className="text-[11px] text-amber-400 font-semibold">
+                Playing: {currentIndex + 1} of {relatedClips.length}
+              </span>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-amber-500/30">
+              {relatedClips.map((item, idx) => {
+                const isActive = item.id === clip.id;
+                return (
+                  <button
+                    key={`${item.id}-${idx}`}
+                    onClick={() => onSelectClip(item)}
+                    className={`shrink-0 flex items-center gap-2 p-1.5 pr-3 rounded-lg border transition-all cursor-pointer text-left ${
+                      isActive
+                        ? "bg-amber-500/20 border-amber-400 text-amber-300 ring-1 ring-amber-400/50"
+                        : "bg-neutral-900/80 hover:bg-neutral-800 border-white/10 text-neutral-300"
+                    }`}
+                  >
+                    <div className="relative w-14 aspect-video rounded overflow-hidden bg-black shrink-0">
+                      <img
+                        src={item.thumbnail || item.poster}
+                        alt={item.clipTitle || item.movieTitle}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0 max-w-[150px]">
+                      <p className="text-xs font-bold truncate">{item.clipTitle || `Episode ${idx + 1}`}</p>
+                      <p className="text-[10px] text-neutral-400 truncate">{item.duration || "Full HD"}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Controls: Previous | Close Center Me | Next */}
+        <div className="w-full pt-3 sm:pt-4 flex items-center justify-between max-w-lg mx-auto px-4">
           {/* Previous Button */}
           <button
             id="player-prev-button"
             onClick={handlePrev}
-            className="font-lumos px-4 sm:px-5 py-2.5 sm:py-3 rounded-full bg-neutral-900/90 hover:bg-neutral-800 text-neutral-200 hover:text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 border border-white/15 hover:border-orange-500/50 transition-all cursor-pointer shadow-lg active:scale-95 tracking-wider"
+            className="font-lumos px-4 sm:px-5 py-2.5 sm:py-3 rounded-full bg-neutral-900/90 hover:bg-neutral-800 text-neutral-200 hover:text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 border border-white/15 hover:border-amber-500/50 transition-all cursor-pointer shadow-lg active:scale-95 tracking-wider"
             title="Previous Movie (Left Arrow)"
           >
-            <ChevronLeft className="w-4 h-4 text-orange-400" />
+            <ChevronLeft className="w-4 h-4 text-amber-400" />
             <span>Previous</span>
           </button>
 
@@ -309,10 +385,10 @@ export const ClipPlayerModal: React.FC<ClipPlayerModalProps> = ({
           <button
             id="player-close-button"
             onClick={onClose}
-            className="font-lumos px-7 sm:px-9 py-2.5 sm:py-3 rounded-full bg-neutral-900 hover:bg-neutral-800 text-white font-black text-xs sm:text-sm flex items-center gap-2 border border-white/25 hover:border-orange-500 transition-all cursor-pointer shadow-2xl hover:scale-105 active:scale-95 group tracking-widest"
+            className="font-lumos px-7 sm:px-9 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-neutral-900 to-black hover:from-neutral-800 hover:to-neutral-900 text-white font-black text-xs sm:text-sm flex items-center gap-2 border border-amber-500/30 hover:border-amber-500 transition-all cursor-pointer shadow-2xl hover:scale-105 active:scale-95 group tracking-widest"
             title="Close Player (Esc)"
           >
-            <X className="w-4 h-4 text-orange-400 group-hover:rotate-90 transition-transform duration-200" />
+            <X className="w-4 h-4 text-amber-400 group-hover:rotate-90 transition-transform duration-200" />
             <span>Close</span>
           </button>
 
@@ -320,11 +396,11 @@ export const ClipPlayerModal: React.FC<ClipPlayerModalProps> = ({
           <button
             id="player-next-button"
             onClick={handleNext}
-            className="font-lumos px-4 sm:px-5 py-2.5 sm:py-3 rounded-full bg-neutral-900/90 hover:bg-neutral-800 text-neutral-200 hover:text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 border border-white/15 hover:border-orange-500/50 transition-all cursor-pointer shadow-lg active:scale-95 tracking-wider"
+            className="font-lumos px-4 sm:px-5 py-2.5 sm:py-3 rounded-full bg-neutral-900/90 hover:bg-neutral-800 text-neutral-200 hover:text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 border border-white/15 hover:border-amber-500/50 transition-all cursor-pointer shadow-lg active:scale-95 tracking-wider"
             title="Next Movie (Right Arrow)"
           >
             <span>Next</span>
-            <ChevronRight className="w-4 h-4 text-orange-400" />
+            <ChevronRight className="w-4 h-4 text-amber-400" />
           </button>
         </div>
       </div>

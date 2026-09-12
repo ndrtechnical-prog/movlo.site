@@ -1,10 +1,10 @@
 import { Movie, StreamingSource } from "../types";
 
-const DEFAULT_TITLE = "MOVLO — Stream Movies & Iconic 4K Cinema Clips";
+const DEFAULT_TITLE = "Movlo Movies — Stream Free Movies Online, Watch 4K Trailers & Cinema | Movlo.site";
 const DEFAULT_DESCRIPTION =
-  "Cinematic movie discovery and 4K clips streaming platform powered dynamically by Watchmode and Gemini AI with trending clips, related scene recommendations, and AI link publishing.";
+  "Stream free movies online in HD & 4K on Movlo Movies (Movlo.site). Watch trending Indian movies, Bollywood cinema, Hollywood blockbusters, Chinese action films, and official trailers with no signup required.";
 const DEFAULT_KEYWORDS =
-  "movies, cinema clips, movie scenes, watchmode, streaming, movie trailers, 4k clips, movie recommendations, where to watch, streaming guide";
+  "Movlo movies, Movlo, Movlo.site, Movlo free movies, watch movies online free, free movie streaming site, Bollywood movies online, Hindi movies 2025, Indian cinema streaming, Hollywood movies free, dual audio movies, South Indian Hindi dubbed, latest movie trailers 2025, 4k cinema streaming, free movies online no sign up";
 const DEFAULT_IMAGE =
   "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200&auto=format&fit=crop&q=80";
 
@@ -191,12 +191,12 @@ export function generateBreadcrumbsJsonLd(movieTitle: string, movieId: number, o
  * Generate Default WebSite structured data
  */
 export function generateWebSiteJsonLd(originUrl?: string): object {
-  const origin = originUrl || (typeof window !== "undefined" ? window.location.origin : "https://movlo.app");
+  const origin = originUrl || (typeof window !== "undefined" ? window.location.origin : "https://movlo.site");
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "MOVLO",
-    "alternateName": "MOVLO Cinema Streaming",
+    "name": "Movlo Movies",
+    "alternateName": ["Movlo", "Movlo.site", "Movlo Movies Online", "Movlo Cinema"],
     "url": origin,
     "description": DEFAULT_DESCRIPTION,
     "potentialAction": {
@@ -231,7 +231,7 @@ export function setMovieMetadata(movie: Movie, sources: StreamingSource[] = []):
   
   // 1. Dynamic Document Title
   // Optimized for Google SERP display (under 60 chars where possible)
-  const title = `${movie.title}${yearSuffix}${ratingSuffix} — Stream & Plot | MOVLO`;
+  const title = `${movie.title}${yearSuffix} — Stream Online Free | Movlo Movies`;
   document.title = title;
 
   // 2. Dynamic Meta Description using Movie Title and Plot Overview
@@ -240,33 +240,33 @@ export function setMovieMetadata(movie: Movie, sources: StreamingSource[] = []):
 
   if (plotText) {
     const trimmedPlot = cleanAndTrimText(plotText, 120);
-    metaDesc = `Watch ${movie.title}${yearSuffix}: ${trimmedPlot} Find where to stream, rent, or buy online on MOVLO.`;
+    metaDesc = `Watch ${movie.title}${yearSuffix} free online on Movlo Movies: ${trimmedPlot} Stream in 4K/HD or explore where to watch free.`;
   } else {
-    metaDesc = `Discover ${movie.title}${yearSuffix} on MOVLO. Explore full movie plot, release information, user reviews, official trailer, and streaming options.`;
+    metaDesc = `Watch ${movie.title}${yearSuffix} free online on Movlo Movies (Movlo.site). Explore full movie plot, ratings, 4K official trailer, and streaming sources.`;
   }
   metaDesc = cleanAndTrimText(metaDesc, 160);
 
   setMetaTag("name", "description", metaDesc);
 
-  // 3. Dynamic Keywords
+  // 3. Dynamic Keywords for Google Search Top Ranking
   const genreList = movie.genres && movie.genres.length > 0 ? movie.genres.join(", ") : "Cinema";
-  const dynamicKeywords = `${movie.title}, ${movie.title} stream, ${movie.title} plot, ${movie.title} cast, watch ${movie.title} online, ${genreList}, streaming sources, where to watch, MOVLO`;
+  const dynamicKeywords = `${movie.title} full movie, watch ${movie.title} online free, ${movie.title} stream, ${movie.title} HD 4K, ${movie.title} Hindi dubbed, ${movie.title} trailer, ${movie.title} Movlo movies, ${genreList}, watch movies online free, Movlo movies, Movlo.site`;
   setMetaTag("name", "keywords", dynamicKeywords);
 
   // 4. OpenGraph & Social Cards
   const currentUrl = window.location.href;
   const image = movie.backdrop || movie.poster || DEFAULT_IMAGE;
 
-  setMetaTag("property", "og:title", `${movie.title}${yearSuffix} — Stream & Where to Watch`);
+  setMetaTag("property", "og:title", `${movie.title}${yearSuffix} Full Movie — Watch Online Free | Movlo`);
   setMetaTag("property", "og:description", metaDesc);
   setMetaTag("property", "og:type", "video.movie");
   setMetaTag("property", "og:url", currentUrl);
   setMetaTag("property", "og:image", image);
-  setMetaTag("property", "og:site_name", "MOVLO");
+  setMetaTag("property", "og:site_name", "Movlo Movies");
 
   // 5. Twitter Card
   setMetaTag("name", "twitter:card", "summary_large_image");
-  setMetaTag("name", "twitter:title", `${movie.title}${yearSuffix} | MOVLO`);
+  setMetaTag("name", "twitter:title", `${movie.title}${yearSuffix} | Movlo Movies`);
   setMetaTag("name", "twitter:description", metaDesc);
   setMetaTag("name", "twitter:image", image);
 
@@ -297,7 +297,7 @@ export function resetDefaultMetadata(): void {
   setMetaTag("property", "og:type", "website");
   setMetaTag("property", "og:url", currentUrl);
   setMetaTag("property", "og:image", DEFAULT_IMAGE);
-  setMetaTag("property", "og:site_name", "MOVLO");
+  setMetaTag("property", "og:site_name", "Movlo Movies");
 
   setMetaTag("name", "twitter:card", "summary_large_image");
   setMetaTag("name", "twitter:title", DEFAULT_TITLE);

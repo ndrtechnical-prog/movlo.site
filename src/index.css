@@ -8,3 +8,45 @@
   font-family: 'Lumos', 'Cinzel Decorative', 'Cinzel', serif;
   letter-spacing: 0.03em;
 }
+
+/* High-Performance Smoothness & Anti-Hang Optimizations */
+html {
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: #07080c;
+  color: #f3f4f6;
+  overflow-x: hidden;
+}
+
+/* Hardware accelerated transitions */
+.gpu-smooth {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, opacity;
+}
+
+/* Sleek VIP Cinema Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090a0f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 9999px;
+  border: 2px solid #090a0f;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #f59e0b;
+}

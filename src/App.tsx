@@ -8,12 +8,11 @@ import { RecentWatchSection } from "./components/RecentWatchSection";
 import { MyWatchlistSection } from "./components/MyWatchlistSection";
 import { ClipPlayerModal } from "./components/ClipPlayerModal";
 import { MovieDetailsModal } from "./components/MovieDetailsModal";
-import { AdminPortalModal } from "./components/AdminPortalModal";
-import { AdminKeyPromptModal } from "./components/AdminKeyPromptModal";
+import { EpisodeExplorerModal } from "./components/EpisodeExplorerModal";
 import { Footer } from "./components/Footer";
 import { MonetagPromoBanner } from "./components/MonetagPromoBanner";
 import { MonetagStickyBar } from "./components/MonetagStickyBar";
-import { Movie, MovieClip, AdBanner } from "./types";
+import { Movie, MovieClip, AdBanner, DramaSeries, SeriesEpisode } from "./types";
 import {
   fetchRecentWatchedMovies,
   recordMovieWatch,
@@ -27,7 +26,9 @@ import { useWatchlist } from "./lib/watchlist";
 import {
   MovieCategory,
   JsonMovie,
-  jsonMovieToMovie
+  jsonMovieToMovie,
+  getSeriesById,
+  seriesEpisodeToClip
 } from "./lib/jsonMovies";
 import {
   getStoredRecentlyWatched,
@@ -53,32 +54,12 @@ export default function App() {
   // Active Trailer / Cinema Clip Player Modal
   const [activeClip, setActiveClip] = useState<MovieClip | null>(null);
 
+  // Active Turkish & Historical Drama Series for Episode Exploration
+  const [activeSeries, setActiveSeries] = useState<DramaSeries | null>(null);
+  const [activeSeriesEpisodes, setActiveSeriesEpisodes] = useState<SeriesEpisode[]>([]);
+
   // Active Movie Details Modal
   const [activeMovieId, setActiveMovieId] = useState<number | null>(null);
-
-  // Admin Vault Modal states
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isKeyPromptOpen, setIsKeyPromptOpen] = useState(false);
-  const [isAdminPreVerified, setIsAdminPreVerified] = useState(false);
-
-  // When key (77490869) is successfully verified
-  const handleAdminKeySuccess = () => {
-    setIsKeyPromptOpen(false);
-    setIsAdminPreVerified(true);
-    setIsAdminOpen(true);
-  };
-
-  // Secret keyboard combo listener for admin key prompt (Ctrl+Shift+A)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a")) {
-        e.preventDefault();
-        setIsKeyPromptOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   // Region
   const [currentRegion, setCurrentRegion] = useState("US");
@@ -250,8 +231,33 @@ export default function App() {
     setActiveClip(null);
   };
 
+  // Turkish & Historical Drama Series Explorer
+  const openSeriesExplorer = async (seriesId: string) => {
+    maybeTriggerMonetagOnAction();
+    const series = await getSeriesById(seriesId);
+    if (series) {
+      setActiveSeries(series);
+      setActiveSeriesEpisodes(series.episodes || []);
+    }
+  };
+
+  const closeSeriesExplorer = () => {
+    setActiveSeries(null);
+  };
+
+  const playSeriesEpisode = (episode: SeriesEpisode, allEpisodes: SeriesEpisode[]) => {
+    setActiveSeriesEpisodes(allEpisodes);
+    const clip = seriesEpisodeToClip(episode, activeSeries);
+    openClip(clip);
+  };
+
   // Handle Play directly from JSON Movie (Global Search or Hero)
   const handlePlayJsonMovie = (movie: JsonMovie) => {
+    if (movie.isSeries && movie.seriesId) {
+      openSeriesExplorer(movie.seriesId);
+      return;
+    }
+
     // Add to Recently Watched with local persistence
     const updated = saveRecentlyWatched(movie);
     setRecentWatchedMovies(updated.map((m, idx) => jsonMovieToMovie(m, idx)));
@@ -280,6 +286,11 @@ export default function App() {
 
   // Handle click on Movie Card in the Catalog
   const handleSelectRecentItem = (item: RecentAddedItem) => {
+    if (item.isSeries && item.seriesId) {
+      openSeriesExplorer(item.seriesId);
+      return;
+    }
+
     if (item.itemType === "ad_link" || item.isAd) {
       if (item.targetUrl) {
         recordAdClick(item.id).catch(() => {});
@@ -350,7 +361,6 @@ export default function App() {
           const el = document.getElementById(sectionId);
           if (el) el.scrollIntoView({ behavior: "smooth" });
         }}
-        onOpenAdmin={() => setIsKeyPromptOpen(true)}
       />
 
       {/* 
@@ -366,8 +376,8 @@ export default function App() {
         onPlayJsonMovie={handlePlayJsonMovie}
         onSelectMovie={openMovie}
         onPlayClip={openClip}
+        onExploreSeries={openSeriesExplorer}
         watchlistCount={watchlist.length}
-        onTriggerAdminKey={() => setIsKeyPromptOpen(true)}
       />
 
       {/* PRIMARY APPLICATION SECTIONS */}
@@ -385,6 +395,7 @@ export default function App() {
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
             onSelectItem={handleSelectRecentItem}
+            onExploreSeries={openSeriesExplorer}
           />
         </div>
 
@@ -446,10 +457,24 @@ export default function App() {
           clip={activeClip}
           onClose={closeClip}
           onSelectClip={(c) => openClip(c)}
+          relatedClips={
+            activeSeriesEpisodes.length > 0
+              ? activeSeriesEpisodes.map((ep) => seriesEpisodeToClip(ep, activeSeries))
+              : undefined
+          }
           onOpenMovieDetails={(mId) => {
             closeClip();
             openMovie(mId);
           }}
+        />
+      )}
+
+      {/* Turkish & Historical Drama Episode Explorer Modal */}
+      {activeSeries && (
+        <EpisodeExplorerModal
+          series={activeSeries}
+          onClose={closeSeriesExplorer}
+          onPlayEpisode={playSeriesEpisode}
         />
       )}
 
@@ -462,24 +487,6 @@ export default function App() {
           onSelectRelatedMovie={(rId) => openMovie(rId)}
         />
       )}
-
-      {/* Secret Admin Key Prompt Modal (Password: 77490869) */}
-      <AdminKeyPromptModal
-        isOpen={isKeyPromptOpen}
-        onClose={() => setIsKeyPromptOpen(false)}
-        onSuccess={handleAdminKeySuccess}
-      />
-
-      {/* Secret Admin Portal Modal */}
-      <AdminPortalModal
-        isOpen={isAdminOpen}
-        onClose={() => {
-          setIsAdminOpen(false);
-          setIsAdminPreVerified(false);
-        }}
-        onDataUpdated={loadWatchedData}
-        isPreVerified={isAdminPreVerified}
-      />
 
       {/* Monetag Floating Bottom Revenue Bar */}
       <MonetagStickyBar />

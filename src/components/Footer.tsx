@@ -1,96 +1,47 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Film, Shield, Info, Heart, Lock } from "lucide-react";
+import React from "react";
+import { Film, Shield } from "lucide-react";
 
 interface FooterProps {
   onNavigateSection: (sectionId: string) => void;
-  onOpenAdmin?: () => void;
-  onTriggerAdminKey?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onNavigateSection, onOpenAdmin, onTriggerAdminKey }) => {
-  const [isPressing, setIsPressing] = useState(false);
-  const [pressProgress, setPressProgress] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number>(0);
-
-  const startPress = () => {
-    setIsPressing(true);
-    setPressProgress(0);
-    startTimeRef.current = Date.now();
-
-    intervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTimeRef.current;
-      setPressProgress(Math.min(100, (elapsed / 5000) * 100));
-    }, 40);
-
-    timerRef.current = setTimeout(() => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      setIsPressing(false);
-      setPressProgress(0);
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(100);
-      }
-      if (onTriggerAdminKey) onTriggerAdminKey();
-      else if (onOpenAdmin) onOpenAdmin();
-    }, 5000);
-  };
-
-  const cancelPress = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setIsPressing(false);
-    setPressProgress(0);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
-
+export const Footer: React.FC<FooterProps> = ({ onNavigateSection }) => {
   return (
-    <footer className="w-full bg-[#050505]/90 backdrop-blur-md border-t border-white/5 pt-12 pb-8 mt-12 text-gray-400 text-xs relative z-10">
+    <footer className="w-full bg-[#050505]/95 backdrop-blur-md border-t border-white/5 pt-12 pb-8 mt-12 text-gray-400 text-xs relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 pb-8 border-b border-white/5">
-          {/* Brand */}
-          <div className="flex flex-col gap-2 max-w-sm">
+          {/* Brand & SEO description */}
+          <div className="flex flex-col gap-2.5 max-w-md">
             <div
               id="footer-movlo-heading"
-              onMouseDown={startPress}
-              onMouseUp={cancelPress}
-              onMouseLeave={cancelPress}
-              onTouchStart={startPress}
-              onTouchEnd={cancelPress}
-              onTouchCancel={cancelPress}
-              onContextMenu={(e) => e.preventDefault()}
-              className="relative inline-flex items-center gap-2 cursor-pointer select-none group w-fit"
-              title="Hold for 5 seconds to unlock Admin"
+              className="inline-flex items-center gap-2 select-none group w-fit cursor-pointer"
+              onClick={() => onNavigateSection("hero")}
+              title="Movlo.site — Stream Free Movies & 4K Trailers"
             >
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-orange-500 to-red-500 p-0.5 flex items-center justify-center border border-white/20">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-400 via-orange-500 to-red-500 p-0.5 flex items-center justify-center border border-white/20 shadow-md shadow-amber-500/20">
                 <div className="w-full h-full bg-[#08080c] rounded-[6px] flex items-center justify-center">
-                  <Film className="w-3.5 h-3.5 text-orange-500" />
+                  <Film className="w-3.5 h-3.5 text-amber-400" />
                 </div>
               </div>
-              <span className={`font-['Syne',sans-serif] text-xl font-black tracking-tighter transition-all duration-300 ${
-                isPressing ? "text-amber-300 drop-shadow-[0_0_15px_rgba(245,158,11,0.8)] scale-95" : "text-orange-500"
-              }`}>
-                MOVLO
+              <span className="font-lumos text-xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-200 to-amber-400">
+                Movlo.site
               </span>
-
-              {isPressing && (
-                <div className="absolute left-0 -top-8 flex items-center gap-2 px-2.5 py-1 rounded-full bg-black/95 border border-amber-500/80 backdrop-blur-md text-[10px] text-amber-300 font-mono z-20 whitespace-nowrap shadow-xl">
-                  <span>Hold: {Math.max(0, (5 - (pressProgress * 5) / 100)).toFixed(1)}s</span>
-                  <div className="w-10 h-1 bg-neutral-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-400" style={{ width: `${pressProgress}%` }} />
-                  </div>
-                </div>
-              )}
             </div>
             <p className="text-gray-400 text-xs leading-relaxed">
-              Your premier cinematic discovery & clips streaming platform. Find what to watch, iconic 4K video clips, and streaming availability dynamically.
+              Watch movies online free on Movlo Movies. Stream trending Indian cinema, Bollywood, Hollywood, Chinese action, latest 4K cinema trailers, and top box-office hits.
             </p>
+            {/* SEO Hashtags for Search Crawlers */}
+            <div className="flex flex-wrap gap-1.5 pt-1 text-[10px] text-amber-400/80 font-medium">
+              <span>#Movlo</span>
+              <span>#MovloMovies</span>
+              <span>#WatchMoviesOnline</span>
+              <span>#FreeMovies</span>
+              <span>#IndianMovies</span>
+              <span>#Bollywood</span>
+              <span>#Hollywood</span>
+              <span>#4KStreaming</span>
+              <span>#LatestTrailers</span>
+            </div>
           </div>
 
           {/* Quick links */}
@@ -122,17 +73,17 @@ export const Footer: React.FC<FooterProps> = ({ onNavigateSection, onOpenAdmin, 
           </div>
         </div>
 
-        {/* Attribution & Legal Disclaimers */}
+        {/* Attribution, SEO Keywords & Legal Disclaimers */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left text-[11px] text-gray-500">
           <div className="flex items-center gap-2">
-            <Shield className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <Shield className="w-3.5 h-3.5 text-amber-400/70 shrink-0" />
             <span>
-              Cinema metadata and streaming sources powered dynamically.
+              Movlo.site Cinema Network. Fast 4K video playback & streaming guides.
             </span>
           </div>
 
           <div className="flex items-center gap-3">
-            <span>© {new Date().getFullYear()} movlo.site. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} Movlo.site — All rights reserved.</span>
           </div>
         </div>
       </div>

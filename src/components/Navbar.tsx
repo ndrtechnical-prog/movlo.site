@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, Film, Globe, X, Loader2, Play, Sparkles, ChevronDown, Clock, Shield } from "lucide-react";
+import { Search, Film, Globe, X, Loader2, Play, Sparkles, ChevronDown, Clock } from "lucide-react";
 import { searchUnifiedApi, FALLBACK_POSTER, getCinemaPosterFallback } from "../lib/api";
 import { SearchResultItem, MovieClip } from "../types";
 
@@ -10,7 +10,6 @@ interface NavbarProps {
   onRegionChange: (region: string) => void;
   hasApiKey: boolean;
   onNavigateSection: (sectionId: string) => void;
-  onOpenAdmin: () => void;
 }
 
 const REGIONS = [
@@ -28,8 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentRegion,
   onRegionChange,
   hasApiKey,
-  onNavigateSection,
-  onOpenAdmin
+  onNavigateSection
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,7 +36,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isRegionMenuOpen, setIsRegionMenuOpen] = useState(false);
-  const [logoClickCount, setLogoClickCount] = useState(0);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle navbar background opacity on scroll
@@ -49,18 +46,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  // Keyboard shortcut for Admin: Ctrl+Shift+A or Cmd+Shift+A
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "A" || e.key === "a")) {
-        e.preventDefault();
-        onOpenAdmin();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onOpenAdmin]);
 
   // Unified Search API with debouncing (~250ms for ultra-fast response)
   useEffect(() => {
@@ -112,17 +97,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     setSearchQuery("");
   };
 
-  // Secret admin opener: 3 clicks on the logo
   const handleLogoClick = () => {
-    const next = logoClickCount + 1;
-    if (next >= 3) {
-      setLogoClickCount(0);
-      onOpenAdmin();
-    } else {
-      setLogoClickCount(next);
-      setTimeout(() => setLogoClickCount(0), 2000);
-      onNavigateSection("hero");
-    }
+    onNavigateSection("hero");
   };
 
   const activeRegionObj = REGIONS.find((r) => r.code === currentRegion) || REGIONS[0];
@@ -144,7 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={handleLogoClick}
             className="flex items-center gap-2 group text-left cursor-pointer focus:outline-none"
             aria-label="MOVLO Home"
-            title="MOVLO Cinema (Triple-click for Admin Vault)"
+            title="MOVLO Movies"
           >
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-orange-500 to-red-500 p-0.5 flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:shadow-orange-500/40 transition-all border border-white/20">
               <div className="w-full h-full bg-[#08080c] rounded-[10px] flex items-center justify-center">
@@ -384,15 +360,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
           </div>
-
-          {/* Secret Admin Vault Button */}
-          <button
-            onClick={onOpenAdmin}
-            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-neutral-900 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/50 flex items-center justify-center text-neutral-400 hover:text-orange-400 transition-all shrink-0 cursor-pointer"
-            title="MOVLO Studio Admin Vault (PIN: 77490869)"
-          >
-            <Shield className="w-3.5 h-3.5" />
-          </button>
         </div>
       </div>
     </header>

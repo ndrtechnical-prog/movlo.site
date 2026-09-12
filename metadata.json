@@ -1,6 +1,6 @@
 {
   "name": "Movlo.site",
-  "description": "Stream cinema trailers, explore recent added movies, most watched titles, and upcoming trailers on Movlo.site.",
+  "description": "Stream free movies online & Urdu dubbed Turkish dramas in HD on Movlo Movies (Movlo.site). Watch trending Indian cinema, Bollywood, Turkish series episodes, and historical stories.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

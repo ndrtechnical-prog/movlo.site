@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Zap, ExternalLink, X } from "lucide-react";
-import { getNextMonetagLink, triggerMonetagLink } from "../lib/monetag";
+import { getNextMonetagLink, triggerMonetagLink, FEATURED_DIRECT_AD_LINK } from "../lib/monetag";
 
 export const MonetagStickyBar: React.FC = () => {
   const [isVisible, setIsVisible] = useState(true);
@@ -9,7 +9,7 @@ export const MonetagStickyBar: React.FC = () => {
 
   const handleOpenAd = (e: React.MouseEvent) => {
     e.preventDefault();
-    triggerMonetagLink(getNextMonetagLink());
+    triggerMonetagLink(FEATURED_DIRECT_AD_LINK);
   };
 
   return (

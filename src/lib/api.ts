@@ -270,6 +270,10 @@ export interface RecentAddedItem {
   addedAgo: string;
   views?: number;
   isAd: boolean;
+  isSeries?: boolean;
+  seriesId?: string;
+  totalEpisodes?: number;
+  episodeNumber?: number;
 }
 
 export const FALLBACK_RECENT_ADDED: RecentAddedItem[] = [

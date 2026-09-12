@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Sparkles, Star, Play, ExternalLink, Film, Clock, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, ArrowDown } from "lucide-react";
+import { Sparkles, Star, Play, ExternalLink, Film, Clock, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, ArrowDown, Layers } from "lucide-react";
 import { RecentAddedItem, FALLBACK_POSTER, getCinemaPosterFallback } from "../lib/api";
 import {
   JsonMovie,
@@ -8,20 +8,23 @@ import {
   loadMoviesByCategory,
   jsonMovieToRecentItem
 } from "../lib/jsonMovies";
+import { MONETAG_NATIVE_ADS } from "../lib/monetag";
 
 interface RecentAddedSectionProps {
   selectedCategory: MovieCategory;
   onSelectCategory: (category: MovieCategory) => void;
   onSelectItem: (item: RecentAddedItem) => void;
+  onExploreSeries?: (seriesId: string) => void;
 }
 
 interface RecentItemCardProps {
   item: RecentAddedItem;
   onSelect: (item: RecentAddedItem) => void;
+  onExploreSeries?: (seriesId: string) => void;
   priority?: boolean;
 }
 
-const RecentItemCard: React.FC<RecentItemCardProps> = ({ item, onSelect, priority = false }) => {
+const RecentItemCard: React.FC<RecentItemCardProps> = ({ item, onSelect, onExploreSeries, priority = false }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [fallbackLevel, setFallbackLevel] = useState<0 | 1 | 2>(0);
 
@@ -45,16 +48,25 @@ const RecentItemCard: React.FC<RecentItemCardProps> = ({ item, onSelect, priorit
   };
 
   const isAd = item.itemType === "ad_link" || item.isAd;
+  const isSeries = item.isSeries && Boolean(item.seriesId);
+
+  const handleClick = () => {
+    if (isSeries && item.seriesId && onExploreSeries) {
+      onExploreSeries(item.seriesId);
+    } else {
+      onSelect(item);
+    }
+  };
 
   return (
     <div
-      onClick={() => onSelect(item)}
+      onClick={handleClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onSelect(item);
+          handleClick();
         }
       }}
       className="group relative flex flex-col w-full text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:border-amber-500/50 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 shadow-lg hover:shadow-amber-500/10"
@@ -86,12 +98,14 @@ const RecentItemCard: React.FC<RecentItemCardProps> = ({ item, onSelect, priorit
           {/* Top Left: Type/Tag Badge */}
           <span
             className={`px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-md ${
-              isAd
+              isSeries
+                ? "bg-amber-400 text-black border border-amber-300 font-extrabold"
+                : isAd
                 ? "bg-amber-500 text-black border border-amber-400/50"
                 : "bg-orange-500 text-black border border-orange-400/50"
             }`}
           >
-            {item.badge || (isAd ? "SPONSORED" : "4K VIDEO")}
+            {item.badge || (isSeries ? `${item.totalEpisodes || ""} EPISODES` : isAd ? "SPONSORED" : "4K VIDEO")}
           </span>
 
           {/* Top Right: Rating Badge */}
@@ -105,12 +119,23 @@ const RecentItemCard: React.FC<RecentItemCardProps> = ({ item, onSelect, priorit
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-2.5">
           <div />
 
-          {/* Center Play / Link Icon on hover */}
-          <div className="self-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-amber-500 text-neutral-950 flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform">
-            {isAd ? (
-              <ExternalLink className="w-4 h-4 text-neutral-950" />
+          {/* Center Play / Link / Explore Icon on hover */}
+          <div className="self-center flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500 text-neutral-950 shadow-xl group-hover:scale-110 transition-transform font-bold text-xs">
+            {isSeries ? (
+              <>
+                <Layers className="w-4 h-4 text-neutral-950" />
+                <span>EXPLORE EPISODES</span>
+              </>
+            ) : isAd ? (
+              <>
+                <ExternalLink className="w-4 h-4 text-neutral-950" />
+                <span>WATCH</span>
+              </>
             ) : (
-              <Play className="w-4 h-4 fill-current ml-0.5 text-neutral-950" />
+              <>
+                <Play className="w-4 h-4 fill-current text-neutral-950" />
+                <span>PLAY</span>
+              </>
             )}
           </div>
 
@@ -145,23 +170,24 @@ const RecentItemCard: React.FC<RecentItemCardProps> = ({ item, onSelect, priorit
   );
 };
 
-const CATEGORIES: MovieCategory[] = ["english", "indian", "chinese", "dramas", "others"];
+const CATEGORIES: MovieCategory[] = ["english", "indian", "chinese", "dramas", "historical", "others"];
 
 export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
   selectedCategory,
   onSelectCategory,
-  onSelectItem
+  onSelectItem,
+  onExploreSeries
 }) => {
   const [allCategoryMovies, setAllCategoryMovies] = useState<JsonMovie[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Pagination for English Movies (loads exactly 8 movies initially)
+  // Pagination for English Movies (loads 16 movies per page for smooth browsing)
   const [englishPage, setEnglishPage] = useState(1);
-  const ENGLISH_PAGE_SIZE = 8;
+  const ENGLISH_PAGE_SIZE = 16;
 
-  // Infinite scrolling for Indian Movies & Dramas (continuous listing of large datasets)
-  const isInfiniteCategory = selectedCategory === "indian" || selectedCategory === "dramas";
+  // Infinite scrolling for Indian Movies, Dramas & Historical Stories
+  const isInfiniteCategory = selectedCategory === "indian" || selectedCategory === "dramas" || selectedCategory === "historical";
   const [infiniteVisibleCount, setInfiniteVisibleCount] = useState(16);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -232,7 +258,46 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
       baseItems = allCategoryMovies.map((m, idx) => jsonMovieToRecentItem(m, idx));
     }
 
-    return baseItems;
+    if (baseItems.length === 0) return [];
+
+    const combined: RecentAddedItem[] = [];
+    let adIndex = 0;
+    baseItems.forEach((item, idx) => {
+      combined.push(item);
+      // In English category (8 items), place one native card at position 4
+      // In infinite / other categories, place a native card every 8 items
+      const shouldInsertAd =
+        selectedCategory === "english" ? idx === 3 : (idx + 1) % 8 === 0;
+
+      if (shouldInsertAd) {
+        const nativeAd = MONETAG_NATIVE_ADS[adIndex % MONETAG_NATIVE_ADS.length];
+        adIndex++;
+        combined.push({
+          id: `${nativeAd.id}-${idx}`,
+          itemType: "ad_link",
+          title: nativeAd.title,
+          subtitle: nativeAd.subtitle,
+          poster: nativeAd.poster,
+          backdrop: nativeAd.backdrop,
+          videoUrl: nativeAd.targetUrl,
+          targetUrl: nativeAd.targetUrl,
+          duration: nativeAd.duration || "4K Stream",
+          year: nativeAd.year || 2026,
+          rating: nativeAd.rating,
+          quality: "4K UHD",
+          genre: nativeAd.genre,
+          genres: ["VIP", "Stream", "Partner"],
+          description: nativeAd.subtitle,
+          badge: nativeAd.badge,
+          addedAt: new Date().toISOString(),
+          addedAgo: nativeAd.addedAgo,
+          views: 980000,
+          isAd: true
+        });
+      }
+    });
+
+    return combined;
   }, [selectedCategory, isInfiniteCategory, allCategoryMovies, englishPage, infiniteVisibleCount]);
 
   const totalEnglishPages = Math.ceil(allCategoryMovies.length / ENGLISH_PAGE_SIZE);
@@ -247,15 +312,37 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
           </div>
           <div>
             <h2 className="text-base sm:text-2xl font-bold font-['Syne',sans-serif] text-white tracking-tight flex items-center gap-2 flex-wrap">
-              <span>Indian Movies & Cinema</span>
+              <span>{CATEGORY_LABELS[selectedCategory]}</span>
               <span className="text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40">
                 {allCategoryMovies.length} Titles
               </span>
             </h2>
             <p className="text-[10px] sm:text-xs text-gray-400 font-medium">
-              Verified Embeddable Indian Movies • High-Speed 1080p Full Streams
+              {selectedCategory === "english"
+                ? "Verified Hollywood & English Movies • High-Speed 1080p Full Streams"
+                : "Verified Embeddable Indian Movies • High-Speed 1080p Full Streams"}
             </p>
           </div>
+        </div>
+
+        {/* Category Navigation Tabs */}
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1">
+          {CATEGORIES.map((cat) => {
+            const isActive = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => onSelectCategory(cat)}
+                className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  isActive
+                    ? "bg-gradient-to-r from-amber-500 to-orange-500 text-neutral-950 shadow-md shadow-amber-500/20 font-black scale-105"
+                    : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
+                }`}
+              >
+                <span>{CATEGORY_LABELS[cat]}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -297,6 +384,7 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
               key={`${item.id}-${idx}`}
               item={item}
               onSelect={onSelectItem}
+              onExploreSeries={onExploreSeries}
               priority={idx < 4}
             />
           ))}

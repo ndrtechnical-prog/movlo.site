@@ -199,3 +199,37 @@ export interface UpcomingMovie {
   description: string;
   trailerUrl: string;
 }
+
+export interface SeriesEpisode {
+  id: string;
+  episodeNumber: number;
+  title: string;
+  fullTitle?: string;
+  videoUrl: string;
+  youtubeId: string;
+  thumbnail: string;
+  backdrop?: string;
+  duration?: string;
+  views?: number;
+  seriesId: string;
+  seriesTitle?: string;
+}
+
+export interface DramaSeries {
+  id: string;
+  title: string;
+  originalTitle?: string;
+  subtitle?: string;
+  poster: string;
+  backdrop: string;
+  rating: number;
+  year: number;
+  genre: string;
+  genres: string[];
+  quality: string;
+  totalEpisodes: number;
+  description: string;
+  category: "dramas" | "historical";
+  isUrduDubbed?: boolean;
+  episodes: SeriesEpisode[];
+}

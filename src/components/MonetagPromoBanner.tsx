@@ -1,11 +1,11 @@
 import React from "react";
 import { Sparkles, ExternalLink, Zap, Download } from "lucide-react";
-import { getNextMonetagLink, triggerMonetagLink } from "../lib/monetag";
+import { getNextMonetagLink, triggerMonetagLink, FEATURED_DIRECT_AD_LINK } from "../lib/monetag";
 
 export const MonetagPromoBanner: React.FC = () => {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    triggerMonetagLink(getNextMonetagLink());
+    triggerMonetagLink(FEATURED_DIRECT_AD_LINK);
   };
 
   return (
@@ -17,7 +17,7 @@ export const MonetagPromoBanner: React.FC = () => {
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            triggerMonetagLink(getNextMonetagLink());
+            triggerMonetagLink(FEATURED_DIRECT_AD_LINK);
           }
         }}
         className="group relative block w-full rounded-2xl overflow-hidden border border-amber-500/40 bg-gradient-to-r from-neutral-950 via-neutral-900 to-amber-950/40 p-0.5 shadow-2xl hover:border-amber-400 transition-all duration-300 hover:shadow-amber-500/20 cursor-pointer"
