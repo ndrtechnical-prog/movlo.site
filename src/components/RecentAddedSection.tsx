@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Sparkles, Star, Play, ExternalLink, Film, Clock, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, ArrowDown, Layers } from "lucide-react";
+import { Sparkles, Star, Play, ExternalLink, Film, Clock, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, ArrowDown, Layers, Shuffle, Check } from "lucide-react";
 import { RecentAddedItem, FALLBACK_POSTER, getCinemaPosterFallback } from "../lib/api";
 import {
   JsonMovie,
@@ -8,6 +8,11 @@ import {
   loadMoviesByCategory,
   jsonMovieToRecentItem
 } from "../lib/jsonMovies";
+import {
+  getFormattedTimeUntilNextShuffle,
+  forceInstantShuffle,
+  SHUFFLE_EVENT_NAME
+} from "../lib/dailyShuffle";
 import { MONETAG_NATIVE_ADS } from "../lib/monetag";
 
 interface RecentAddedSectionProps {
@@ -214,6 +219,40 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
     }
   }, [selectedCategory]);
 
+  // 24-Hour Shuffle state & auto-countdown
+  const [shuffleCountdown, setShuffleCountdown] = useState<string>(getFormattedTimeUntilNextShuffle());
+  const [isShuffling, setIsShuffling] = useState(false);
+  const [showShuffleNotice, setShowShuffleNotice] = useState(false);
+
+  useEffect(() => {
+    // Update countdown every 60 seconds
+    const interval = setInterval(() => {
+      setShuffleCountdown(getFormattedTimeUntilNextShuffle());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Listen to global 24-hour shuffle events
+  useEffect(() => {
+    const handleGlobalShuffle = () => {
+      loadCategoryData();
+    };
+    window.addEventListener(SHUFFLE_EVENT_NAME, handleGlobalShuffle);
+    return () => window.removeEventListener(SHUFFLE_EVENT_NAME, handleGlobalShuffle);
+  }, [loadCategoryData]);
+
+  const handleManualShuffle = () => {
+    setIsShuffling(true);
+    forceInstantShuffle();
+    setShowShuffleNotice(true);
+    setTimeout(() => {
+      setIsShuffling(false);
+    }, 600);
+    setTimeout(() => {
+      setShowShuffleNotice(false);
+    }, 4000);
+  };
+
   useEffect(() => {
     loadCategoryData();
   }, [loadCategoryData]);
@@ -325,26 +364,65 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
           </div>
         </div>
 
-        {/* Category Navigation Tabs */}
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1">
-          {CATEGORIES.map((cat) => {
-            const isActive = selectedCategory === cat;
-            return (
-              <button
-                key={cat}
-                onClick={() => onSelectCategory(cat)}
-                className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                  isActive
-                    ? "bg-gradient-to-r from-amber-500 to-orange-500 text-neutral-950 shadow-md shadow-amber-500/20 font-black scale-105"
-                    : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
-                }`}
-              >
-                <span>{CATEGORY_LABELS[cat]}</span>
-              </button>
-            );
-          })}
+        {/* Category Navigation Tabs & 24h Auto-Shuffle Controller */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto">
+          {/* Category Tabs */}
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1 max-w-full">
+            {CATEGORIES.map((cat) => {
+              const isActive = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => onSelectCategory(cat)}
+                  className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                    isActive
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-neutral-950 shadow-md shadow-amber-500/20 font-black scale-105"
+                      : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
+                  }`}
+                >
+                  <span>{CATEGORY_LABELS[cat]}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 24-Hour Shuffle Status & Instant Shuffle Action */}
+          <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-semibold"
+              title="Movies automatically randomly shuffle every 24 hours"
+            >
+              <Shuffle className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span className="hidden xs:inline">Auto-Shuffle:</span>
+              <span className="font-mono text-amber-200">{shuffleCountdown}</span>
+            </div>
+            <button
+              onClick={handleManualShuffle}
+              disabled={isShuffling}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/15 text-xs text-neutral-200 hover:text-white font-semibold transition-all cursor-pointer disabled:opacity-50"
+              title="Shuffle all movies randomly right now"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isShuffling ? "animate-spin text-amber-400" : "text-amber-400"}`} />
+              <span>Shuffle</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Re-shuffle Success Notification Banner */}
+      {showShuffleNotice && (
+        <div className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 border border-amber-500/40 text-amber-300 text-xs font-semibold flex items-center justify-between shadow-lg shadow-amber-500/10 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-amber-400 text-black flex items-center justify-center font-bold">
+              <Check className="w-3.5 h-3.5 stroke-[3]" />
+            </div>
+            <span>All movies randomly shuffled! Next 24h automatic rotation in {shuffleCountdown}.</span>
+          </div>
+          <span className="text-[10px] uppercase tracking-wider font-black px-2 py-0.5 rounded bg-amber-400/20 text-amber-200 border border-amber-400/30">
+            24h Active
+          </span>
+        </div>
+      )}
 
       {/* Error state */}
       {error && !isLoading && (

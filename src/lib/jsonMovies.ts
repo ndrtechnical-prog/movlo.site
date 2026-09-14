@@ -1,4 +1,5 @@
 import { DramaSeries, SeriesEpisode, MovieClip } from "../types";
+import { shuffleArrayFor24Hours, SHUFFLE_EVENT_NAME } from "./dailyShuffle";
 
 export interface JsonMovie {
   id: string;
@@ -36,9 +37,24 @@ export const CATEGORY_LABELS: Record<MovieCategory, string> = {
   others: "Others"
 };
 
-const CACHED_DATA: Partial<Record<MovieCategory, JsonMovie[]>> = {};
+const RAW_CATEGORY_DATA: Partial<Record<MovieCategory, JsonMovie[]>> = {};
+const CACHED_SHUFFLED_DATA: Partial<Record<MovieCategory, JsonMovie[]>> = {};
 let ALL_MOVIES_CACHE: JsonMovie[] | null = null;
 let ALL_SERIES_CACHE: DramaSeries[] | null = null;
+
+export function clearMovieShuffledCache(): void {
+  Object.keys(CACHED_SHUFFLED_DATA).forEach((key) => {
+    delete CACHED_SHUFFLED_DATA[key as MovieCategory];
+  });
+  ALL_MOVIES_CACHE = null;
+}
+
+// Auto-clear cache whenever a shuffle event fires
+if (typeof window !== "undefined") {
+  window.addEventListener(SHUFFLE_EVENT_NAME, () => {
+    clearMovieShuffledCache();
+  });
+}
 
 const CATEGORY_FILE_MAP: Record<MovieCategory, string> = {
   english: "/data/english-movies.json",
@@ -49,24 +65,36 @@ const CATEGORY_FILE_MAP: Record<MovieCategory, string> = {
   others: "/data/others.json"
 };
 
-export async function loadMoviesByCategory(category: MovieCategory): Promise<JsonMovie[]> {
-  if (CACHED_DATA[category]) {
-    return CACHED_DATA[category]!;
+export async function loadMoviesByCategory(category: MovieCategory, shouldShuffle: boolean = true): Promise<JsonMovie[]> {
+  if (shouldShuffle && CACHED_SHUFFLED_DATA[category]) {
+    return CACHED_SHUFFLED_DATA[category]!;
   }
 
-  const filePath = CATEGORY_FILE_MAP[category];
-  try {
-    const res = await fetch(filePath);
-    if (!res.ok) {
-      throw new Error(`Failed to load ${filePath}: ${res.status}`);
+  // Fetch raw data if not in memory
+  let rawData = RAW_CATEGORY_DATA[category];
+  if (!rawData) {
+    const filePath = CATEGORY_FILE_MAP[category];
+    try {
+      const res = await fetch(filePath);
+      if (!res.ok) {
+        throw new Error(`Failed to load ${filePath}: ${res.status}`);
+      }
+      rawData = await res.json();
+      RAW_CATEGORY_DATA[category] = rawData;
+    } catch (err) {
+      console.error(`Error loading category ${category}:`, err);
+      return [];
     }
-    const data: JsonMovie[] = await res.json();
-    CACHED_DATA[category] = data;
-    return data;
-  } catch (err) {
-    console.error(`Error loading category ${category}:`, err);
-    return [];
   }
+
+  if (!shouldShuffle) {
+    return rawData || [];
+  }
+
+  // Apply deterministic 24-hour shuffle
+  const shuffled = shuffleArrayFor24Hours(rawData || [], category);
+  CACHED_SHUFFLED_DATA[category] = shuffled;
+  return shuffled;
 }
 
 export async function loadAllSeries(): Promise<DramaSeries[]> {
@@ -88,14 +116,21 @@ export async function getSeriesById(id: string): Promise<DramaSeries | null> {
   return all.find((s) => s.id === id) || null;
 }
 
-export async function loadAllJsonMovies(): Promise<JsonMovie[]> {
-  if (ALL_MOVIES_CACHE) {
+export async function loadAllJsonMovies(shouldShuffle: boolean = true): Promise<JsonMovie[]> {
+  if (shouldShuffle && ALL_MOVIES_CACHE) {
     return ALL_MOVIES_CACHE;
   }
 
   const categories: MovieCategory[] = ["indian", "dramas", "historical", "english", "chinese", "others"];
-  const lists = await Promise.all(categories.map((cat) => loadMoviesByCategory(cat)));
+  const lists = await Promise.all(categories.map((cat) => loadMoviesByCategory(cat, false)));
   const combined = lists.flat();
+
+  if (shouldShuffle) {
+    const shuffled = shuffleArrayFor24Hours(combined, "all-movies");
+    ALL_MOVIES_CACHE = shuffled;
+    return shuffled;
+  }
+
   ALL_MOVIES_CACHE = combined;
   return combined;
 }

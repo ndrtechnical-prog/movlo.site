@@ -9,6 +9,7 @@ import { MyWatchlistSection } from "./components/MyWatchlistSection";
 import { ClipPlayerModal } from "./components/ClipPlayerModal";
 import { MovieDetailsModal } from "./components/MovieDetailsModal";
 import { EpisodeExplorerModal } from "./components/EpisodeExplorerModal";
+import { InstallAppModal } from "./components/InstallAppModal";
 import { Footer } from "./components/Footer";
 import { MonetagPromoBanner } from "./components/MonetagPromoBanner";
 import { MonetagStickyBar } from "./components/MonetagStickyBar";
@@ -23,6 +24,7 @@ import {
 } from "./lib/api";
 import { resetDefaultMetadata } from "./lib/metaManager";
 import { useWatchlist } from "./lib/watchlist";
+import { checkAndTriggerDailyShuffle } from "./lib/dailyShuffle";
 import {
   MovieCategory,
   JsonMovie,
@@ -63,6 +65,28 @@ export default function App() {
 
   // Region
   const [currentRegion, setCurrentRegion] = useState("US");
+
+  // PWA Install State & Prompt Listener
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+  }, []);
+
+  // 24-Hour Automatic Movie Shuffle Checker
+  useEffect(() => {
+    checkAndTriggerDailyShuffle();
+    const interval = setInterval(() => {
+      checkAndTriggerDailyShuffle();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Client Session ID for presence tracking
   const [sessionId] = useState(() => {
@@ -357,6 +381,7 @@ export default function App() {
         currentRegion={currentRegion}
         onRegionChange={setCurrentRegion}
         hasApiKey={true}
+        onOpenInstallModal={() => setIsInstallModalOpen(true)}
         onNavigateSection={(sectionId) => {
           const el = document.getElementById(sectionId);
           if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -491,8 +516,21 @@ export default function App() {
       {/* Monetag Floating Bottom Revenue Bar */}
       <MonetagStickyBar />
 
+      {/* PWA Install Modal */}
+      <InstallAppModal
+        isOpen={isInstallModalOpen}
+        onClose={() => setIsInstallModalOpen(false)}
+        deferredPrompt={deferredPrompt}
+      />
+
       {/* Footer */}
-      <Footer />
+      <Footer
+        onNavigateSection={(sectionId) => {
+          const el = document.getElementById(sectionId);
+          if (el) el.scrollIntoView({ behavior: "smooth" });
+        }}
+        onOpenInstallModal={() => setIsInstallModalOpen(true)}
+      />
     </div>
   );
 }

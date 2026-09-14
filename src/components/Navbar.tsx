@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, Film, Globe, X, Loader2, Play, Sparkles, ChevronDown, Clock } from "lucide-react";
+import { Search, Film, Globe, X, Loader2, Play, Sparkles, ChevronDown, Clock, Download } from "lucide-react";
 import { searchUnifiedApi, FALLBACK_POSTER, getCinemaPosterFallback } from "../lib/api";
 import { SearchResultItem, MovieClip } from "../types";
 
@@ -10,6 +10,7 @@ interface NavbarProps {
   onRegionChange: (region: string) => void;
   hasApiKey: boolean;
   onNavigateSection: (sectionId: string) => void;
+  onOpenInstallModal?: () => void;
 }
 
 const REGIONS = [
@@ -27,7 +28,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentRegion,
   onRegionChange,
   hasApiKey,
-  onNavigateSection
+  onNavigateSection,
+  onOpenInstallModal
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -122,10 +124,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="MOVLO Home"
             title="MOVLO Movies"
           >
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-orange-500 to-red-500 p-0.5 flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:shadow-orange-500/40 transition-all border border-white/20">
-              <div className="w-full h-full bg-[#08080c] rounded-[10px] flex items-center justify-center">
-                <Film className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
-              </div>
+            <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-xl p-0.5 bg-gradient-to-tr from-amber-400 via-orange-500 to-amber-600 shadow-md shadow-amber-500/20 group-hover:shadow-amber-500/50 transition-all border border-amber-400/40 shrink-0 overflow-hidden">
+              <img
+                src="/falcon-icon.jpg"
+                alt="Falcon Movlo Icon"
+                className="w-full h-full object-cover rounded-[8px]"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div className="flex flex-col">
               <span className="font-lumos text-xl sm:text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-200 to-amber-400 flex items-center">
@@ -319,6 +324,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
           </div>
+
+          {/* Install App button */}
+          {onOpenInstallModal && (
+            <button
+              onClick={onOpenInstallModal}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-[11px] sm:text-xs shadow-md shadow-amber-500/25 hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
+              title="Install Movlo Movies App on this device"
+            >
+              <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span className="hidden sm:inline">Install App</span>
+              <span className="sm:hidden">Install</span>
+            </button>
+          )}
 
           {/* Region selector dropdown */}
           <div className="relative">

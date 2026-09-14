@@ -1,11 +1,12 @@
 import React from "react";
-import { Film, Shield } from "lucide-react";
+import { Shield, Download } from "lucide-react";
 
 interface FooterProps {
   onNavigateSection: (sectionId: string) => void;
+  onOpenInstallModal?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onNavigateSection }) => {
+export const Footer: React.FC<FooterProps> = ({ onNavigateSection, onOpenInstallModal }) => {
   return (
     <footer className="w-full bg-[#050505]/95 backdrop-blur-md border-t border-white/5 pt-12 pb-8 mt-12 text-gray-400 text-xs relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -18,34 +19,35 @@ export const Footer: React.FC<FooterProps> = ({ onNavigateSection }) => {
               onClick={() => onNavigateSection("hero")}
               title="Movlo.site — Stream Free Movies & 4K Trailers"
             >
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-400 via-orange-500 to-red-500 p-0.5 flex items-center justify-center border border-white/20 shadow-md shadow-amber-500/20">
-                <div className="w-full h-full bg-[#08080c] rounded-[6px] flex items-center justify-center">
-                  <Film className="w-3.5 h-3.5 text-amber-400" />
-                </div>
+              <div className="w-8 h-8 rounded-xl p-0.5 bg-gradient-to-tr from-amber-400 via-orange-500 to-amber-600 shadow-md shadow-amber-500/20 border border-amber-400/30 overflow-hidden shrink-0">
+                <img
+                  src="/falcon-icon.jpg"
+                  alt="Falcon Movlo Icon"
+                  className="w-full h-full object-cover rounded-[10px]"
+                  referrerPolicy="no-referrer"
+                />
               </div>
               <span className="font-lumos text-xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-200 to-amber-400">
                 Movlo.site
               </span>
             </div>
             <p className="text-gray-400 text-xs leading-relaxed">
-              Watch movies online free on Movlo Movies. Stream trending Indian cinema, Bollywood, Hollywood, Chinese action, latest 4K cinema trailers, and top box-office hits.
+              Watch movies online free on Movlo Movies. Stream trending Indian cinema, Bollywood, Turkish dramas in Urdu, Hazrat Yousuf (A.S), and latest 4K cinema trailers.
             </p>
             {/* SEO Hashtags for Search Crawlers */}
             <div className="flex flex-wrap gap-1.5 pt-1 text-[10px] text-amber-400/80 font-medium">
               <span>#Movlo</span>
               <span>#MovloMovies</span>
-              <span>#WatchMoviesOnline</span>
-              <span>#FreeMovies</span>
+              <span>#TurkishDramasUrdu</span>
+              <span>#HazratYousuf</span>
               <span>#IndianMovies</span>
               <span>#Bollywood</span>
-              <span>#Hollywood</span>
               <span>#4KStreaming</span>
-              <span>#LatestTrailers</span>
             </div>
           </div>
 
           {/* Quick links */}
-          <div className="flex flex-wrap gap-6 text-xs font-semibold text-gray-300">
+          <div className="flex flex-wrap gap-5 text-xs font-semibold text-gray-300">
             <button
               onClick={() => onNavigateSection("recent-added")}
               className="hover:text-amber-400 transition-colors cursor-pointer"
@@ -70,6 +72,15 @@ export const Footer: React.FC<FooterProps> = ({ onNavigateSection }) => {
             >
               Upcoming Trailers
             </button>
+            {onOpenInstallModal && (
+              <button
+                onClick={onOpenInstallModal}
+                className="text-amber-400 hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1 font-bold"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Install Movlo App</span>
+              </button>
+            )}
           </div>
         </div>
 

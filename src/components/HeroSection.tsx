@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Search, Sparkles, TrendingUp, Film, X, Loader2, BookmarkCheck, Play, ArrowRight, ChevronDown } from "lucide-react";
 import { MovieClip } from "../types";
 import { JsonMovie, MovieCategory, CATEGORY_LABELS, searchJsonMovies, loadAllJsonMovies } from "../lib/jsonMovies";
+import { SHUFFLE_EVENT_NAME } from "../lib/dailyShuffle";
 import { HeroicPosterSwipe } from "./HeroicPosterSwipe";
 
 interface HeroSectionProps {
@@ -46,15 +47,22 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   useEffect(() => {
     let isMounted = true;
-    loadAllJsonMovies()
-      .then((movies) => {
-        if (isMounted && movies && movies.length > 0) {
-          setAllLoadedMovies(movies);
-        }
-      })
-      .catch((err) => console.error("Failed to load heroic posters:", err));
+    const fetchMovies = () => {
+      loadAllJsonMovies()
+        .then((movies) => {
+          if (isMounted && movies && movies.length > 0) {
+            setAllLoadedMovies(movies);
+          }
+        })
+        .catch((err) => console.error("Failed to load heroic posters:", err));
+    };
+
+    fetchMovies();
+
+    window.addEventListener(SHUFFLE_EVENT_NAME, fetchMovies);
     return () => {
       isMounted = false;
+      window.removeEventListener(SHUFFLE_EVENT_NAME, fetchMovies);
     };
   }, []);
 
