@@ -10,6 +10,7 @@ import { ClipPlayerModal } from "./components/ClipPlayerModal";
 import { MovieDetailsModal } from "./components/MovieDetailsModal";
 import { EpisodeExplorerModal } from "./components/EpisodeExplorerModal";
 import { InstallAppModal } from "./components/InstallAppModal";
+import { GoogleAdSenseContainer } from "./components/GoogleAdSenseContainer";
 import { Footer } from "./components/Footer";
 import { MonetagPromoBanner } from "./components/MonetagPromoBanner";
 import { MonetagStickyBar } from "./components/MonetagStickyBar";
@@ -461,6 +462,9 @@ export default function App() {
             }}
           />
         </div>
+
+        {/* Google AdSense Responsive Unit (Publisher: ca-pub-6696395667318454) */}
+        <GoogleAdSenseContainer />
 
         {/* 
           NEW RELEASE MOVIES (API / TMDB MOVIES SECTION):
