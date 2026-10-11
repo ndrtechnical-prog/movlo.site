@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react";
-import { X, Play, Search, Star, Film, Sparkles, Tv, Layers, ArrowRight, Share2, Check } from "lucide-react";
+import React, { useState, useMemo, useEffect } from "react";
+import { ArrowLeft, X, Play, Search, Star, Film, Sparkles, Tv, Layers, ArrowRight, Share2, Check } from "lucide-react";
 import { DramaSeries, SeriesEpisode } from "../types";
 
 interface EpisodeExplorerModalProps {
@@ -80,6 +80,17 @@ export const EpisodeExplorerModal: React.FC<EpisodeExplorerModalProps> = ({
     }
   };
 
+  // Keyboard Escape listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   return (
     <div
       role="dialog"
@@ -97,11 +108,23 @@ export const EpisodeExplorerModal: React.FC<EpisodeExplorerModalProps> = ({
           <div className="absolute inset-0 bg-gradient-to-t from-[#0b0c12] via-[#0b0c12]/60 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0b0c12] via-transparent to-[#0b0c12]/80" />
 
+          {/* Back button top left - restores previous window */}
+          <button
+            onClick={onClose}
+            className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/75 hover:bg-black/95 text-white transition-all cursor-pointer border border-white/20 hover:border-amber-400/60 backdrop-blur-md shadow-lg text-xs font-bold group"
+            title="Back to previous window (Esc)"
+            aria-label="Back to previous window"
+          >
+            <ArrowLeft className="w-4 h-4 text-amber-400 transition-transform group-hover:-translate-x-1" />
+            <span>Back</span>
+          </button>
+
           {/* Close button top right */}
           <button
             onClick={onClose}
             className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 p-2 rounded-full bg-black/70 hover:bg-white/20 text-white transition-colors cursor-pointer border border-white/20 backdrop-blur-md shadow-lg"
-            title="Close episode explorer"
+            title="Close episode explorer (Esc)"
+            aria-label="Close episode explorer"
           >
             <X className="w-5 h-5" />
           </button>

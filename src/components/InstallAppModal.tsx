@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Download, Smartphone, CheckCircle, Sparkles, Share2, PlusSquare } from "lucide-react";
+import { ArrowLeft, X, Download, Smartphone, CheckCircle, Sparkles, Share2, PlusSquare } from "lucide-react";
 
 interface InstallAppModalProps {
   isOpen: boolean;
@@ -30,6 +30,18 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({
       (window.navigator as any).standalone === true;
     setIsInstalled(isStandalone);
   }, []);
+
+  // Keyboard Escape listener
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -66,11 +78,23 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({
         {/* Glow backlight */}
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full bg-amber-500/20 blur-3xl pointer-events-none" />
 
-        {/* Close Button */}
+        {/* Back Button top left */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 hover:border-amber-400/50 transition-all cursor-pointer text-xs font-semibold group"
+          title="Back to previous window (Esc)"
+          aria-label="Back to previous window"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-amber-400 transition-transform group-hover:-translate-x-0.5" />
+          <span>Back</span>
+        </button>
+
+        {/* Close Button top right */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white border border-white/10 transition-colors cursor-pointer"
-          title="Close"
+          title="Close (Esc)"
+          aria-label="Close"
         >
           <X className="w-4 h-4" />
         </button>

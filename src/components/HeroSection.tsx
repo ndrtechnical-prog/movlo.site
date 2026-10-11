@@ -3,6 +3,7 @@ import { Search, Sparkles, TrendingUp, Film, X, Loader2, BookmarkCheck, Play, Ar
 import { MovieClip } from "../types";
 import { JsonMovie, MovieCategory, CATEGORY_LABELS, searchJsonMovies, loadAllJsonMovies } from "../lib/jsonMovies";
 import { SHUFFLE_EVENT_NAME } from "../lib/dailyShuffle";
+import { preloadPosterImages } from "../lib/posterCacheManager";
 import { HeroicPosterSwipe } from "./HeroicPosterSwipe";
 
 interface HeroSectionProps {
@@ -52,6 +53,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         .then((movies) => {
           if (isMounted && movies && movies.length > 0) {
             setAllLoadedMovies(movies);
+            const heroUrls = movies
+              .slice(0, 20)
+              .map((m) => m.backdrop || m.poster || m.thumbnail)
+              .filter((url): url is string => Boolean(url && url.length > 5));
+            preloadPosterImages(heroUrls);
           }
         })
         .catch((err) => console.error("Failed to load heroic posters:", err));

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { X, Star, Clock, Calendar, Film, ExternalLink, Play, Sparkles, AlertCircle, Loader2, Tv, ShieldCheck, Share2, Globe, Check, Code, Bookmark, BookmarkCheck, Zap, Download } from "lucide-react";
+import { ArrowLeft, X, Star, Clock, Calendar, Film, ExternalLink, Play, Sparkles, AlertCircle, Loader2, Tv, ShieldCheck, Share2, Globe, Check, Code, Bookmark, BookmarkCheck, Zap, Download } from "lucide-react";
 import { Movie, StreamingSource } from "../types";
 import { fetchMovieDetails, fetchMovieSources, FALLBACK_POSTER, getCinemaPosterFallback } from "../lib/api";
 import { setMovieMetadata, resetDefaultMetadata, generateMovieJsonLd } from "../lib/metaManager";
 import { useWatchlist } from "../lib/watchlist";
 import { triggerMonetagLink, FEATURED_DIRECT_AD_LINK } from "../lib/monetag";
+import { GoogleAdSenseContainer } from "./GoogleAdSenseContainer";
 
 interface MovieDetailsModalProps {
   movieId: number | null;
@@ -102,16 +103,35 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({
     }
   }, [movie, sources]);
 
+  // Popstate & Escape listener for trailer sub-overlay
+  useEffect(() => {
+    if (!showTrailer) return;
+
+    // Push sub-state for the trailer overlay
+    window.history.pushState({ modal: "trailer", movieId }, "", window.location.href);
+
+    const handleTrailerPopState = () => {
+      setShowTrailer(false);
+    };
+
+    window.addEventListener("popstate", handleTrailerPopState);
+    return () => window.removeEventListener("popstate", handleTrailerPopState);
+  }, [showTrailer, movieId]);
+
   // Keyboard Escape listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        if (showTrailer) {
+          setShowTrailer(false);
+        } else {
+          onClose();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, showTrailer]);
 
   if (!movieId) return null;
 
@@ -150,11 +170,23 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto bg-black/80 backdrop-blur-xl">
       {/* Modal Container */}
       <div className="relative w-full max-w-4xl bg-[#0a0a0e]/95 backdrop-blur-2xl border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
-        {/* Close button */}
+        {/* Back button top left - restores previous window / main page */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 left-3 sm:top-4 sm:left-4 z-30 flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-black/75 hover:bg-black/95 backdrop-blur-md text-neutral-200 hover:text-white border border-white/20 hover:border-amber-400/60 transition-all cursor-pointer shadow-lg text-xs sm:text-sm font-bold group"
+          aria-label="Back to previous window"
+          title="Back to previous window (Esc)"
+        >
+          <ArrowLeft className="w-4 h-4 text-amber-400 transition-transform group-hover:-translate-x-1" />
+          <span>Back</span>
+        </button>
+
+        {/* Close button top right */}
         <button
           onClick={onClose}
           className="absolute top-3 right-3 sm:top-4 sm:right-4 z-30 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md text-neutral-300 hover:text-white border border-white/10 flex items-center justify-center transition-all cursor-pointer shadow-lg"
           aria-label="Close details"
+          title="Close (Esc)"
         >
           <X className="w-5 h-5" />
         </button>
@@ -489,6 +521,11 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({
                 <p className="text-[11px] text-neutral-500 italic pt-1">
                   Availability data provided by Watchmode API. Links redirect to official provider websites. MOVLO does not host or scrape unlicensed video streams.
                 </p>
+
+                {/* Clean, Non-Intrusive Google AdSense Unit */}
+                <div className="w-full pt-2">
+                  <GoogleAdSenseContainer variant="modal" className="my-2" />
+                </div>
               </div>
 
               {/* Similar Titles (if available) */}
@@ -520,9 +557,24 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({
           <div className="fixed inset-0 z-60 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-start pt-3 sm:pt-6 md:pt-8 pb-12 px-3 sm:px-6 overflow-y-auto transform-gpu animate-in fade-in duration-200">
             <div className="fixed inset-0 bg-gradient-to-b from-amber-950/20 via-black/80 to-black/95 pointer-events-auto" onClick={() => setShowTrailer(false)} />
             <div className="relative z-10 w-full max-w-5xl flex flex-col items-center animate-in fade-in slide-in-from-top-3 duration-300">
-              {/* Clean Title Header: VIP Cinema */}
-              <div className="w-full flex items-center justify-between pb-2 sm:pb-3 px-1">
+              {/* Clean Title Header: VIP Cinema with Back Button */}
+              <div className="w-full flex items-center justify-between pb-2 sm:pb-3 px-1 gap-2">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0 pr-2">
+                  <button
+                    onClick={() => {
+                      if (window.history.state?.modal === "trailer") {
+                        window.history.back();
+                      } else {
+                        setShowTrailer(false);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 text-neutral-200 hover:text-white border border-white/20 hover:border-amber-400/50 transition-all cursor-pointer shadow-lg text-xs font-bold group shrink-0"
+                    title="Back to Movie Details"
+                    aria-label="Back to Movie Details"
+                  >
+                    <ArrowLeft className="w-4 h-4 text-amber-400 transition-transform group-hover:-translate-x-1" />
+                    <span>Back</span>
+                  </button>
                   <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-extrabold uppercase shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
                     TRAILER 4K
@@ -532,9 +584,16 @@ export const MovieDetailsModal: React.FC<MovieDetailsModalProps> = ({
                   </h3>
                 </div>
                 <button
-                  onClick={() => setShowTrailer(false)}
-                  className="p-2 sm:p-2.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-white/15 hover:border-amber-500/50 transition-all cursor-pointer shadow-lg hover:rotate-90 duration-200"
-                  title="Close (Esc)"
+                  onClick={() => {
+                    if (window.history.state?.modal === "trailer") {
+                      window.history.back();
+                    } else {
+                      setShowTrailer(false);
+                    }
+                  }}
+                  className="p-2 sm:p-2.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-white/15 hover:border-amber-500/50 transition-all cursor-pointer shadow-lg hover:rotate-90 duration-200 shrink-0"
+                  title="Close Trailer (Esc)"
+                  aria-label="Close Trailer"
                 >
                   <X className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
                 </button>

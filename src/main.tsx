@@ -9,11 +9,17 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-// Register PWA Service Worker for App Installability
+// Register PWA & Poster Caching Service Worker
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
-      console.log('SW register note:', err);
-    });
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .then((reg) => {
+        // Check for updates
+        reg.update().catch(() => {});
+      })
+      .catch((err) => {
+        console.debug('SW register note:', err);
+      });
   });
 }

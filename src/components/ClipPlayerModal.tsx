@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { X, ChevronLeft, ChevronRight, Maximize2, Minimize2, Zap, Download, Sparkles, ExternalLink } from "lucide-react";
+import { ArrowLeft, X, ChevronLeft, ChevronRight, Maximize2, Minimize2, Zap, Download, Sparkles, ExternalLink } from "lucide-react";
 import { MovieClip } from "../types";
 import { getCinemaPosterFallback } from "../lib/api";
 import { triggerMonetagLink, FEATURED_DIRECT_AD_LINK } from "../lib/monetag";
+import { GoogleAdSenseContainer } from "./GoogleAdSenseContainer";
 
 interface ClipPlayerModalProps {
   clip: MovieClip | null;
@@ -202,7 +203,16 @@ export const ClipPlayerModal: React.FC<ClipPlayerModalProps> = ({
         {!isLandscape && (
           <div className="w-full flex items-center justify-between pb-1.5 sm:pb-2.5 px-1 text-left">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 pr-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] sm:text-[11px] font-extrabold tracking-wider uppercase shrink-0 shadow-sm shadow-amber-500/20">
+              <button
+                onClick={onClose}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 text-neutral-200 hover:text-white border border-white/20 hover:border-amber-400/50 transition-all cursor-pointer shadow-lg text-xs font-bold group shrink-0"
+                title="Back to previous window (Esc)"
+                aria-label="Back to previous window"
+              >
+                <ArrowLeft className="w-4 h-4 text-amber-400 transition-transform group-hover:-translate-x-1" />
+                <span>Back</span>
+              </button>
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] sm:text-[11px] font-extrabold tracking-wider uppercase shrink-0 shadow-sm shadow-amber-500/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
                 MOVLO 4K
               </span>
@@ -323,6 +333,13 @@ export const ClipPlayerModal: React.FC<ClipPlayerModalProps> = ({
             <span>VIP Cinema Pass</span>
           </button>
         </div>
+
+        {/* Clean, Non-Intrusive Google AdSense Unit */}
+        {!isLandscape && (
+          <div className="w-full max-w-xl mx-auto px-2">
+            <GoogleAdSenseContainer variant="compact" className="my-2" />
+          </div>
+        )}
 
         {/* Related Clips / Episodes Quick Carousel */}
         {relatedClips.length > 1 && !isLandscape && (

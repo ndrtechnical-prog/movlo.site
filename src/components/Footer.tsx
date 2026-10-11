@@ -96,13 +96,19 @@ export const Footer: React.FC<FooterProps> = ({ onNavigateSection, onOpenInstall
           </div>
         </div>
 
-        {/* Attribution, SEO Keywords & Legal Disclaimers */}
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left text-[11px] text-gray-500">
+        {/* Attribution, Cache Performance & Legal Disclaimers */}
+        <div className="pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left text-[11px] text-gray-500">
           <div className="flex items-center gap-2">
             <Shield className="w-3.5 h-3.5 text-amber-400/70 shrink-0" />
             <span>
               Movlo.site Cinema Network. Fast 4K video playback & streaming guides.
             </span>
+          </div>
+
+          {/* Service Worker Image Cache Indicator */}
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>⚡ Service Worker Image Cache Active</span>
           </div>
 
           <div className="flex items-center gap-3">

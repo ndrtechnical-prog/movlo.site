@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Sparkles, Star, Play, ExternalLink, Film, Clock, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, ArrowDown, Layers, Shuffle, Check } from "lucide-react";
+import { Sparkles, Star, Play, ExternalLink, Film, Clock, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, ArrowDown, Layers, Shuffle, Check, Zap } from "lucide-react";
 import { RecentAddedItem, FALLBACK_POSTER, getCinemaPosterFallback } from "../lib/api";
 import {
   JsonMovie,
@@ -14,6 +14,7 @@ import {
   SHUFFLE_EVENT_NAME
 } from "../lib/dailyShuffle";
 import { MONETAG_NATIVE_ADS } from "../lib/monetag";
+import { preloadPosterImages, usePosterCacheStats } from "../lib/posterCacheManager";
 
 interface RecentAddedSectionProps {
   selectedCategory: MovieCategory;
@@ -205,6 +206,9 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
     }
   }, [selectedCategory, isInfiniteCategory]);
 
+  // Service worker poster caching hook
+  const cacheStats = usePosterCacheStats();
+
   // Load JSON movies for the selected category
   const loadCategoryData = useCallback(async () => {
     setIsLoading(true);
@@ -212,6 +216,14 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
     try {
       const data = await loadMoviesByCategory(selectedCategory);
       setAllCategoryMovies(data);
+      // Pre-warm top movie posters and thumbnails into the Service Worker cache
+      if (data && data.length > 0) {
+        const posterUrls = data
+          .slice(0, 28)
+          .map((m) => m.backdrop || m.poster || m.thumbnail)
+          .filter((url): url is string => Boolean(url && url.length > 5));
+        preloadPosterImages(posterUrls);
+      }
     } catch (err: any) {
       setError(`Failed to load ${CATEGORY_LABELS[selectedCategory]}. Please try again.`);
     } finally {
@@ -386,8 +398,18 @@ export const RecentAddedSection: React.FC<RecentAddedSectionProps> = ({
             })}
           </div>
 
-          {/* 24-Hour Shuffle Status & Instant Shuffle Action */}
+          {/* 24-Hour Shuffle Status & Poster Cache Badge & Instant Shuffle Action */}
           <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
+            {cacheStats.cachedImagesCount > 0 && (
+              <div
+                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold"
+                title={`${cacheStats.cachedImagesCount} posters cached in Service Worker for instant loading on repeat visits`}
+              >
+                <Zap className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />
+                <span className="hidden lg:inline">Posters Cached:</span>
+                <span className="font-mono text-emerald-200">{cacheStats.cachedImagesCount}</span>
+              </div>
+            )}
             <div
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-semibold"
               title="Movies automatically randomly shuffle every 24 hours"

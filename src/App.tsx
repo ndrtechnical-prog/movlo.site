@@ -153,24 +153,86 @@ export default function App() {
       .catch(() => setAds([]));
   }, [loadWatchedData]);
 
-  // Check URL on load for direct /movie/:id route
+  // Centralized Back Navigation: Restores previous window or main catalog
+  const goBackWindow = useCallback(() => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      setActiveMovieId(null);
+      setActiveClip(null);
+      setActiveSeries(null);
+      setIsInstallModalOpen(false);
+      window.history.replaceState({}, "", "/");
+      resetDefaultMetadata();
+    }
+  }, []);
+
+  // Check URL on load and handle popstate (Browser Back Button / Hardware Back / Modal Back)
+  // Ensures that whenever the user clicks Back, the previous window is restored ("Back karne per back window on ho")
   useEffect(() => {
-    const handleUrlRoute = () => {
+    const handleUrlRoute = (e?: PopStateEvent) => {
       const path = window.location.pathname;
+      const searchParams = new URLSearchParams(window.location.search);
+      const state = e?.state || window.history.state;
+
+      // 1. Movie route (/movie/:id or ?movie=:id)
       const movieMatch = path.match(/\/movie\/(\d+)/);
-      if (movieMatch && movieMatch[1]) {
-        setActiveMovieId(parseInt(movieMatch[1], 10));
-      } else {
-        const params = new URLSearchParams(window.location.search);
-        const qMovieId = params.get("movie");
-        if (qMovieId) {
-          setActiveMovieId(parseInt(qMovieId, 10));
-        } else {
-          resetDefaultMetadata();
+      const qMovieId = searchParams.get("movie");
+      const targetMovieId = movieMatch?.[1]
+        ? parseInt(movieMatch[1], 10)
+        : qMovieId
+        ? parseInt(qMovieId, 10)
+        : state?.modal === "movie" && state?.movieId
+        ? state.movieId
+        : null;
+
+      // 2. Clip / Watch route (?watch=:id or ?clip=:id)
+      const qWatchId = searchParams.get("watch") || searchParams.get("clip");
+      const isClipActive = Boolean(qWatchId || state?.modal === "clip");
+
+      // 3. Series route (?series=:id)
+      const qSeriesId = searchParams.get("series") || (state?.modal === "series" ? state.seriesId : null);
+
+      // 4. Install modal state
+      const isInstallActive = state?.modal === "install";
+
+      if (isClipActive) {
+        // A video clip is active; close other overlays
+        setIsInstallModalOpen(false);
+        setActiveSeries(null);
+        if (state?.prevMovieId) {
+          setActiveMovieId(state.prevMovieId);
         }
+      } else if (qSeriesId) {
+        // Back to Turkish / Historical series explorer
+        setActiveClip(null);
+        setActiveMovieId(null);
+        setIsInstallModalOpen(false);
+        getSeriesById(qSeriesId).then((series) => {
+          if (series) {
+            setActiveSeries(series);
+            setActiveSeriesEpisodes(series.episodes || []);
+          }
+        });
+      } else if (targetMovieId) {
+        // Back to Movie Details window!
+        setActiveClip(null);
+        setActiveSeries(null);
+        setIsInstallModalOpen(false);
+        setActiveMovieId(targetMovieId);
+      } else if (isInstallActive) {
+        setIsInstallModalOpen(true);
+      } else {
+        // Back to main homepage / catalog window! ("Back karne per back window on ho")
+        setActiveMovieId(null);
+        setActiveClip(null);
+        setActiveSeries(null);
+        setIsInstallModalOpen(false);
+        resetDefaultMetadata();
       }
     };
 
+    // Initial check on load
     handleUrlRoute();
     window.addEventListener("popstate", handleUrlRoute);
     return () => window.removeEventListener("popstate", handleUrlRoute);
@@ -196,8 +258,11 @@ export default function App() {
       return;
     }
 
+    setActiveClip(null);
+    setActiveSeries(null);
+    setIsInstallModalOpen(false);
     setActiveMovieId(id);
-    window.history.pushState({ movieId: id }, "", `/movie/${id}`);
+    window.history.pushState({ modal: "movie", movieId: id }, "", `/movie/${id}`);
 
     // Track real movie watch event
     recordMovieWatch({
@@ -212,9 +277,14 @@ export default function App() {
   };
 
   const closeMovie = () => {
-    setActiveMovieId(null);
-    window.history.pushState({}, "", "/");
-    resetDefaultMetadata();
+    // When closing or clicking Back, return to previous window cleanly
+    if (window.history.state?.modal === "movie" || window.location.pathname.startsWith("/movie") || window.location.search.includes("movie=")) {
+      window.history.back();
+    } else {
+      setActiveMovieId(null);
+      window.history.replaceState({}, "", "/");
+      resetDefaultMetadata();
+    }
   };
 
   // Trailer / Clip handlers
@@ -236,8 +306,16 @@ export default function App() {
       });
     }
 
+    const clipId = clip.id || String(clip.movieId || Date.now());
+    const prevMovieId = activeMovieId;
+    window.history.pushState(
+      { modal: "clip", clipId, movieId: clip.movieId, prevMovieId },
+      "",
+      `?watch=${encodeURIComponent(clipId)}`
+    );
+
     setActiveClip({
-      id: clip.id || String(Date.now()),
+      id: clipId,
       movieId: clip.movieId || 0,
       movieTitle: clip.movieTitle || "Featured Cinema",
       clipTitle: clip.clipTitle || "Official Video",
@@ -256,7 +334,16 @@ export default function App() {
   };
 
   const closeClip = () => {
-    setActiveClip(null);
+    if (window.history.state?.modal === "clip" || window.location.search.includes("watch=")) {
+      window.history.back();
+    } else {
+      setActiveClip(null);
+      if (activeMovieId) {
+        window.history.replaceState({ modal: "movie", movieId: activeMovieId }, "", `/movie/${activeMovieId}`);
+      } else {
+        window.history.replaceState({}, "", "/");
+      }
+    }
   };
 
   // Turkish & Historical Drama Series Explorer
@@ -264,13 +351,40 @@ export default function App() {
     maybeTriggerMonetagOnAction();
     const series = await getSeriesById(seriesId);
     if (series) {
+      window.history.pushState(
+        { modal: "series", seriesId },
+        "",
+        `?series=${encodeURIComponent(seriesId)}`
+      );
+      setActiveClip(null);
+      setActiveMovieId(null);
+      setIsInstallModalOpen(false);
       setActiveSeries(series);
       setActiveSeriesEpisodes(series.episodes || []);
     }
   };
 
   const closeSeriesExplorer = () => {
-    setActiveSeries(null);
+    if (window.history.state?.modal === "series" || window.location.search.includes("series=")) {
+      window.history.back();
+    } else {
+      setActiveSeries(null);
+      window.history.replaceState({}, "", "/");
+    }
+  };
+
+  // Install PWA Modal handlers with back support
+  const openInstallModal = () => {
+    setIsInstallModalOpen(true);
+    window.history.pushState({ modal: "install" }, "", window.location.href);
+  };
+
+  const closeInstallModal = () => {
+    if (window.history.state?.modal === "install") {
+      window.history.back();
+    } else {
+      setIsInstallModalOpen(false);
+    }
   };
 
   const playSeriesEpisode = (episode: SeriesEpisode, allEpisodes: SeriesEpisode[]) => {
@@ -385,7 +499,7 @@ export default function App() {
         currentRegion={currentRegion}
         onRegionChange={setCurrentRegion}
         hasApiKey={true}
-        onOpenInstallModal={() => setIsInstallModalOpen(true)}
+        onOpenInstallModal={openInstallModal}
         onNavigateSection={(sectionId) => {
           const el = document.getElementById(sectionId);
           if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -411,6 +525,9 @@ export default function App() {
 
       {/* PRIMARY APPLICATION SECTIONS */}
       <main className="flex-1 w-full flex flex-col">
+        {/* Top Google AdSense Leaderboard Unit */}
+        <GoogleAdSenseContainer variant="leaderboard" />
+
         {/* 
           MOVIE CATEGORY CATALOG:
           - Automatically reads from the respective JSON file:
@@ -439,6 +556,9 @@ export default function App() {
         <div id="trending-queries" className="pt-2">
           <TrendingKeywordsHub />
         </div>
+
+        {/* Mid-Feed Google AdSense Responsive Unit */}
+        <GoogleAdSenseContainer variant="in-feed" />
 
         {/* 
           RECENTLY WATCHED SECTION:
@@ -520,7 +640,6 @@ export default function App() {
               : undefined
           }
           onOpenMovieDetails={(mId) => {
-            closeClip();
             openMovie(mId);
           }}
         />
@@ -551,7 +670,7 @@ export default function App() {
       {/* PWA Install Modal */}
       <InstallAppModal
         isOpen={isInstallModalOpen}
-        onClose={() => setIsInstallModalOpen(false)}
+        onClose={closeInstallModal}
         deferredPrompt={deferredPrompt}
       />
 
@@ -561,7 +680,7 @@ export default function App() {
           const el = document.getElementById(sectionId);
           if (el) el.scrollIntoView({ behavior: "smooth" });
         }}
-        onOpenInstallModal={() => setIsInstallModalOpen(true)}
+        onOpenInstallModal={openInstallModal}
       />
     </div>
   );
