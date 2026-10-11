@@ -47,7 +47,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigateSection, onOpenInstall
           </div>
 
           {/* Quick links */}
-          <div className="flex flex-wrap gap-5 text-xs font-semibold text-gray-300">
+          <div className="flex flex-wrap gap-4 sm:gap-5 text-xs font-semibold text-gray-300">
             <button
               onClick={() => onNavigateSection("recent-added")}
               className="hover:text-amber-400 transition-colors cursor-pointer"
@@ -55,10 +55,22 @@ export const Footer: React.FC<FooterProps> = ({ onNavigateSection, onOpenInstall
               Recent Added
             </button>
             <button
-              onClick={() => onNavigateSection("recent-watch")}
+              onClick={() => onNavigateSection("trending-queries")}
+              className="hover:text-amber-400 transition-colors cursor-pointer text-amber-300/90"
+            >
+              Trending Queries
+            </button>
+            <button
+              onClick={() => onNavigateSection("upcoming-movies")}
               className="hover:text-amber-400 transition-colors cursor-pointer"
             >
-              Recent Watch
+              2026 Movies Guide
+            </button>
+            <button
+              onClick={() => onNavigateSection("faq")}
+              className="hover:text-amber-400 transition-colors cursor-pointer"
+            >
+              Search FAQ
             </button>
             <button
               onClick={() => onNavigateSection("my-watchlist")}
@@ -70,7 +82,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigateSection, onOpenInstall
               onClick={() => onNavigateSection("upcoming-trailers")}
               className="hover:text-amber-400 transition-colors cursor-pointer"
             >
-              Upcoming Trailers
+              Trailers
             </button>
             {onOpenInstallModal && (
               <button
@@ -78,7 +90,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigateSection, onOpenInstall
                 className="text-amber-400 hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1 font-bold"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Install Movlo App</span>
+                <span>Install App</span>
               </button>
             )}
           </div>

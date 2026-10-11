@@ -66,6 +66,19 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     };
   }, []);
 
+  // Listen for trending keyword clicks from FAQ or Trending Hub
+  useEffect(() => {
+    const handleQuickKeyword = (e: any) => {
+      const kw = e.detail;
+      if (typeof kw === "string" && kw.trim()) {
+        setSearchQuery(kw.trim());
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener("movlo_search_keyword", handleQuickKeyword);
+    return () => window.removeEventListener("movlo_search_keyword", handleQuickKeyword);
+  }, []);
+
   // Close search dropdown on click outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -190,6 +203,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <div className="relative flex items-center bg-black/60 hover:bg-black/75 focus-within:bg-black/90 backdrop-blur-2xl rounded-full border border-white/15 focus-within:border-amber-400/80 focus-within:ring-2 focus-within:ring-amber-400/30 transition-all duration-300 shadow-2xl pl-4 pr-2 py-2 sm:py-2.5">
               <Search className="w-4 h-4 text-amber-400/90 shrink-0 mr-2.5 pointer-events-none" />
               <input
+                id="hero-global-search"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => {

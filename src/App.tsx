@@ -11,6 +11,9 @@ import { MovieDetailsModal } from "./components/MovieDetailsModal";
 import { EpisodeExplorerModal } from "./components/EpisodeExplorerModal";
 import { InstallAppModal } from "./components/InstallAppModal";
 import { GoogleAdSenseContainer } from "./components/GoogleAdSenseContainer";
+import { TrendingKeywordsHub } from "./components/TrendingKeywordsHub";
+import { UpcomingMoviesArticle } from "./components/UpcomingMoviesArticle";
+import { SeoFaqSection } from "./components/SeoFaqSection";
 import { Footer } from "./components/Footer";
 import { MonetagPromoBanner } from "./components/MonetagPromoBanner";
 import { MonetagStickyBar } from "./components/MonetagStickyBar";
@@ -429,6 +432,15 @@ export default function App() {
         <MonetagPromoBanner />
 
         {/* 
+          TRENDING SEARCH QUERIES & KEYWORDS HUB:
+          - High-intent search terms queried on Google, ChatGPT, Gemini, Netflix, and MovieBox
+          - Clicking any query instantly searches across Movlo's catalog
+        */}
+        <div id="trending-queries" className="pt-2">
+          <TrendingKeywordsHub />
+        </div>
+
+        {/* 
           RECENTLY WATCHED SECTION:
           - Automatically populated when a user watches/opens any movie
           - Stored in localStorage so it remains after navigating between categories
@@ -463,9 +475,6 @@ export default function App() {
           />
         </div>
 
-        {/* Google AdSense Responsive Unit (Publisher: ca-pub-6696395667318454) */}
-        <GoogleAdSenseContainer />
-
         {/* 
           NEW RELEASE MOVIES (API / TMDB MOVIES SECTION):
           - Only location where API/TMDB movies appear
@@ -477,6 +486,25 @@ export default function App() {
             onPlayTrailer={openClip}
             onSelectMovie={openMovie}
           />
+        </div>
+
+        {/* 
+          UPCOMING MOVIES & BLOCKBUSTERS 2026–2027 EDITORIAL ARTICLE:
+          - Deep SEO release calendar, cast, and search intent analysis for Google ranking
+        */}
+        <div id="upcoming-movies" className="pt-4">
+          <UpcomingMoviesArticle />
+        </div>
+
+        {/* Google AdSense Responsive Unit (Publisher: ca-pub-6696395667318454) */}
+        <GoogleAdSenseContainer />
+
+        {/* 
+          SEO FAQ OPTIMIZATION FOR GOOGLE SEARCH ENGINE:
+          - Rich search snippet accordions with interactive search and related keywords
+        */}
+        <div id="faq" className="pt-4">
+          <SeoFaqSection />
         </div>
       </main>
 

@@ -5,6 +5,7 @@
 export const FEATURED_DIRECT_AD_LINK = "https://omg10.com/4/11782278";
 
 export const MONETAG_LINKS: string[] = [
+  "https://omg10.com/4/293855",   // Zone 293855 high-CPM MultiTag direct smartlink
   "https://omg10.com/4/11782278", // User requested primary high-conversion link
   "https://omg10.com/4/9831191",
   "https://omg10.com/4/9831203",
