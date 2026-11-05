@@ -47,7 +47,7 @@ export function triggerMonetagLink(customUrl?: string): void {
 }
 
 // Frequency-capped smart click for maximizing revenue on movie play interactions
-// Only triggers once every 2 minutes or after 3 clicks so it feels natural and doesn't annoy the user
+// Frequency-capped smart click for maximizing revenue on movie play & browse interactions
 const LAST_TRIGGER_KEY = "movlo_monetag_last_pop";
 const CLICK_COUNT_KEY = "movlo_monetag_click_count";
 
@@ -63,10 +63,11 @@ export function maybeTriggerMonetagOnAction(): void {
     clickCount += 1;
     sessionStorage.setItem(CLICK_COUNT_KEY, String(clickCount));
 
-    // Fire on the 1st action or every 4th action, with minimum 60 seconds interval
-    if ((clickCount === 1 || clickCount % 4 === 0) && now - lastTime > 60000) {
+    // Active trigger for Monetag: triggers on user interactions (play movie, explore series)
+    // Ensures ads activate reliably
+    if (clickCount === 1 || (clickCount % 3 === 0 && now - lastTime > 25000)) {
       sessionStorage.setItem(LAST_TRIGGER_KEY, String(now));
-      triggerMonetagLink();
+      triggerMonetagLink(FEATURED_DIRECT_AD_LINK);
     }
   } catch {
     // Silent fail

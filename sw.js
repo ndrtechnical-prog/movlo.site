@@ -55,6 +55,8 @@ function isAdOrDynamicRequest(url) {
     host.includes('5gvci.com') ||
     host.includes('n6wxm.com') ||
     host.includes('omg10.com') ||
+    host.includes('monetag.com') ||
+    host.includes('propellerads.com') ||
     host.includes('adservice')
   ) {
     return true;

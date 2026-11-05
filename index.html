@@ -1,7 +1,28 @@
 <!doctype html>
 <html lang="en" class="dark">
-  <head>
+    <!-- Monetag Ad Network MultiTag & SDK Connections -->
+    <link rel="dns-prefetch" href="https://5gvci.com" />
+    <link rel="dns-prefetch" href="https://n6wxm.com" />
+    <link rel="dns-prefetch" href="https://quge5.com" />
+    <link rel="dns-prefetch" href="https://omg10.com" />
+    <link rel="preconnect" href="https://5gvci.com" crossorigin />
+    <link rel="preconnect" href="https://n6wxm.com" crossorigin />
+    <link rel="preconnect" href="https://quge5.com" crossorigin />
+
+    <!-- Monetag MultiTag Tag (Zone: 293855) -->
     <script src="https://quge5.com/88/tag.min.js" data-zone="293855" async data-cfasync="false"></script>
+
+    <!-- Monetag AD1 (In-Page Push / Zone: 11766512) -->
+    <script src="https://5gvci.com/pfe/current/tag.min.js?z=11766512" data-cfasync="false" async></script>
+
+    <!-- Monetag AD2 (Vignette Banner / Zone: 11771759) -->
+    <script data-cfasync="false">
+      (function(s){
+        s.dataset.zone = '11771759';
+        s.src = 'https://n6wxm.com/vignette.min.js';
+      })([document.documentElement, document.head, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+    </script>
+
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Movlo Movies — Stream Free Movies Online, Turkish Dramas & 4K Trailers | Movlo.site</title>
@@ -178,7 +199,7 @@
   </head>
   <body class="bg-[#07080c] text-neutral-100 antialiased selection:bg-amber-400 selection:text-black min-h-screen">
     <div id="root"></div>
-    <!-- Monetag Push & In-Page Verification Service Worker -->
+    <!-- Service Worker Registration -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
@@ -191,14 +212,6 @@
       }
     </script>
     <script type="module" src="/src/main.tsx"></script>
-
-    <!-- START: MONETAG AD1 (In-Page Push / Zone: 11766512) -->
-    <script src="https://5gvci.com/pfe/current/tag.min.js?z=11766512" data-cfasync="false" async></script>
-    <!-- END: MONETAG AD1 -->
-
-    <!-- START: MONETAG AD2 (Vignette Banner / Zone: 11771759) -->
-    <script>(function(s){s.dataset.zone='11771759',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <!-- END: MONETAG AD2 -->
   </body>
 </html>
 
