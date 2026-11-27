@@ -1,25 +1,24 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
-import './index.css';
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import "./index.css";
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
-  </StrictMode>,
+  </StrictMode>
 );
 
-// Register PWA & Poster Caching Service Worker
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+// Unregister any legacy service workers cleanly on load
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
     navigator.serviceWorker
-      .register('/sw.js', { scope: '/' })
-      .then((reg) => {
-        // Check for updates
-        reg.update().catch(() => {});
+      .getRegistrations()
+      .then((regs) => {
+        regs.forEach((reg) => {
+          reg.unregister().catch(() => {});
+        });
       })
-      .catch((err) => {
-        console.debug('SW register note:', err);
-      });
+      .catch(() => {});
   });
 }

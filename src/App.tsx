@@ -1,687 +1,307 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Navbar } from "./components/Navbar";
-import { HeroSection } from "./components/HeroSection";
-import { UpcomingSection } from "./components/UpcomingSection";
-import { AdBannerCard } from "./components/AdBannerCard";
-import { RecentAddedSection } from "./components/RecentAddedSection";
-import { RecentWatchSection } from "./components/RecentWatchSection";
-import { MyWatchlistSection } from "./components/MyWatchlistSection";
-import { ClipPlayerModal } from "./components/ClipPlayerModal";
-import { MovieDetailsModal } from "./components/MovieDetailsModal";
-import { EpisodeExplorerModal } from "./components/EpisodeExplorerModal";
-import { InstallAppModal } from "./components/InstallAppModal";
-import { GoogleAdSenseContainer } from "./components/GoogleAdSenseContainer";
-import { TrendingKeywordsHub } from "./components/TrendingKeywordsHub";
-import { UpcomingMoviesArticle } from "./components/UpcomingMoviesArticle";
-import { SeoFaqSection } from "./components/SeoFaqSection";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { onAuthStateChanged, User } from "firebase/auth";
+import {
+  AdSettings,
+  Article,
+  Category,
+  SiteSettings
+} from "./types";
+import { auth, testConnection } from "./lib/firebase";
+import {
+  fetchAdSettings,
+  fetchArticleMetricsMap,
+  fetchCategories,
+  fetchPublishedArticles,
+  fetchSiteSettings
+} from "./lib/firestoreRepo";
+import {
+  DEFAULT_AD_SETTINGS,
+  DEFAULT_CATEGORIES,
+  DEFAULT_SITE_SETTINGS,
+  STARTER_ARTICLES
+} from "./lib/defaultCatalog";
+import { applySeoHead } from "./lib/seoHead";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
-import { MonetagPromoBanner } from "./components/MonetagPromoBanner";
-import { MonetagStickyBar } from "./components/MonetagStickyBar";
-import { Movie, MovieClip, AdBanner, DramaSeries, SeriesEpisode } from "./types";
-import {
-  fetchRecentWatchedMovies,
-  recordMovieWatch,
-  RecentAddedItem,
-  recordAdClick,
-  fetchActiveAds,
-  pingPresence
-} from "./lib/api";
-import { resetDefaultMetadata } from "./lib/metaManager";
-import { useWatchlist } from "./lib/watchlist";
-import { checkAndTriggerDailyShuffle } from "./lib/dailyShuffle";
-import {
-  MovieCategory,
-  JsonMovie,
-  jsonMovieToMovie,
-  getSeriesById,
-  seriesEpisodeToClip
-} from "./lib/jsonMovies";
-import {
-  getStoredRecentlyWatched,
-  saveRecentlyWatched
-} from "./lib/recentlyWatched";
-import { maybeTriggerMonetagOnAction } from "./lib/monetag";
+import { HomePage } from "./pages/HomePage";
+import { CategoryPage } from "./pages/CategoryPage";
+import { SearchPage } from "./pages/SearchPage";
+import { ArticlePage } from "./pages/ArticlePage";
+import { TrustPages, TrustRoute } from "./pages/TrustPages";
+import { AdminDashboard } from "./pages/AdminDashboard";
 
-export default function App() {
-  // Movie category navigation state (Indian Movies is the default first page)
-  const [selectedCategory, setSelectedCategory] = useState<MovieCategory>("indian");
+const TRUST_ROUTES: TrustRoute[] = [
+  "/about",
+  "/contact",
+  "/privacy-policy",
+  "/terms",
+  "/disclaimer",
+  "/editorial-policy",
+  "/cookie-policy"
+];
 
-  // Recently Watched state (Loaded from & synced to local persistence)
-  const [recentWatchedMovies, setRecentWatchedMovies] = useState<Movie[]>([]);
-  const [isRecentWatchedLoading, setIsRecentWatchedLoading] = useState(true);
-  const [recentWatchedError, setRecentWatchedError] = useState<string | null>(null);
+export function App() {
+  const [currentUrl, setCurrentUrl] = useState(
+    () => `${window.location.pathname}${window.location.search}`
+  );
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
-  // Active Ads (Created by Admin via Phone Upload + Link Attachment)
-  const [ads, setAds] = useState<AdBanner[]>([]);
+  const [articles, setArticles] = useState<Article[]>(STARTER_ARTICLES);
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
+  const [adSettings, setAdSettings] = useState<AdSettings>(DEFAULT_AD_SETTINGS);
+  const [metricsMap, setMetricsMap] = useState<Record<string, number>>({});
 
-  // Browser State Watchlist Hook
-  const { watchlist, removeFromWatchlist, clearWatchlist } = useWatchlist();
+  const refreshPublicData = useCallback(async () => {
+    const [dbArticles, dbCats, dbSite, dbAds, dbMetrics] = await Promise.all([
+      fetchPublishedArticles().catch(() => []),
+      fetchCategories().catch(() => []),
+      fetchSiteSettings().catch(() => DEFAULT_SITE_SETTINGS),
+      fetchAdSettings().catch(() => DEFAULT_AD_SETTINGS),
+      fetchArticleMetricsMap().catch(() => ({}))
+    ]);
 
-  // Active Trailer / Cinema Clip Player Modal
-  const [activeClip, setActiveClip] = useState<MovieClip | null>(null);
-
-  // Active Turkish & Historical Drama Series for Episode Exploration
-  const [activeSeries, setActiveSeries] = useState<DramaSeries | null>(null);
-  const [activeSeriesEpisodes, setActiveSeriesEpisodes] = useState<SeriesEpisode[]>([]);
-
-  // Active Movie Details Modal
-  const [activeMovieId, setActiveMovieId] = useState<number | null>(null);
-
-  // Region
-  const [currentRegion, setCurrentRegion] = useState("US");
-
-  // PWA Install State & Prompt Listener
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+    setArticles(dbArticles.length > 0 ? dbArticles : STARTER_ARTICLES);
+    setCategories(dbCats.length > 0 ? dbCats : DEFAULT_CATEGORIES);
+    setSiteSettings(dbSite);
+    setAdSettings(dbAds);
+    setMetricsMap(dbMetrics);
+  }, []);
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
+    testConnection().catch(() => false);
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthReady(true);
+    });
+    refreshPublicData();
+    return () => unsub();
+  }, [refreshPublicData]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      setCurrentUrl(`${window.location.pathname}${window.location.search}`);
     };
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  // 24-Hour Automatic Movie Shuffle Checker
-  useEffect(() => {
-    checkAndTriggerDailyShuffle();
-    const interval = setInterval(() => {
-      checkAndTriggerDailyShuffle();
-    }, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Client Session ID for presence tracking
-  const [sessionId] = useState(() => {
-    if (typeof window !== "undefined") {
-      let sid = sessionStorage.getItem("movlo_sid");
-      if (!sid) {
-        sid = "user_" + Math.random().toString(36).slice(2, 9);
-        sessionStorage.setItem("movlo_sid", sid);
-      }
-      return sid;
+  const navigate = useCallback((path: string) => {
+    const normalized = path.startsWith("/") ? path : `/${path}`;
+    if (`${window.location.pathname}${window.location.search}` !== normalized) {
+      window.history.pushState({}, "", normalized);
     }
-    return "user_guest";
-  });
+    setCurrentUrl(normalized);
+  }, []);
 
-  // Real-time Presence Heartbeat
+  const { pathname, searchParams } = useMemo(() => {
+    const u = new URL(currentUrl, "https://movlo.site");
+    return { pathname: u.pathname, searchParams: u.searchParams };
+  }, [currentUrl]);
+
+  const activeArticle = useMemo(() => {
+    const match = pathname.match(/^\/article\/([a-z0-9-]+)$/i);
+    if (!match) return null;
+    const slug = match[1].toLowerCase();
+    return articles.find((a) => a.slug === slug) || null;
+  }, [pathname, articles]);
+
+  const activeCategorySlug = useMemo(() => {
+    const match = pathname.match(/^\/category\/([a-z0-9-]+)$/i);
+    return match ? match[1].toLowerCase() : null;
+  }, [pathname]);
+
+  // Synchronize document title, meta tags, canonical link, and JSON-LD schema
   useEffect(() => {
-    const reportPresence = () => {
-      pingPresence({
-        sessionId,
-        movieTitle: activeClip?.movieTitle || undefined,
-        clipTitle: activeClip?.clipTitle || undefined,
-        isPlaying: Boolean(activeClip),
-        device: window.innerWidth < 768 ? "Mobile" : "Desktop",
-        quality: activeClip?.quality || "4K UHD"
+    if (pathname.startsWith("/admin")) {
+      applySeoHead({
+        title: "Editorial Studio — MOVLO",
+        description: "Private editorial workspace for MOVLO.site.",
+        path: "/admin",
+        noindex: true
       });
-    };
-
-    reportPresence();
-    const timer = setInterval(reportPresence, 12000);
-    return () => clearInterval(timer);
-  }, [sessionId, activeClip]);
-
-  // Load Initial Recently Watched from local storage (or fallback to API)
-  const loadWatchedData = useCallback(async () => {
-    setIsRecentWatchedLoading(true);
-    try {
-      const stored = getStoredRecentlyWatched();
-      if (stored && stored.length > 0) {
-        setRecentWatchedMovies(stored.map((m, idx) => jsonMovieToMovie(m, idx)));
-        setRecentWatchedError(null);
-      } else {
-        // Fallback to initial sample movies
-        const watchedRes = await fetchRecentWatchedMovies();
-        setRecentWatchedMovies(watchedRes.movies);
-        setRecentWatchedError(null);
-      }
-    } catch (err) {
-      console.warn("Recent watched fetch error:", err);
-      setRecentWatchedError("Unable to load recently watched movies.");
-    } finally {
-      setIsRecentWatchedLoading(false);
+      return;
     }
-  }, []);
 
-  useEffect(() => {
-    loadWatchedData();
-    // Load active ads
-    fetchActiveAds()
-      .then((data) => setAds(data))
-      .catch(() => setAds([]));
-  }, [loadWatchedData]);
-
-  // Centralized Back Navigation: Restores previous window or main catalog
-  const goBackWindow = useCallback(() => {
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      setActiveMovieId(null);
-      setActiveClip(null);
-      setActiveSeries(null);
-      setIsInstallModalOpen(false);
-      window.history.replaceState({}, "", "/");
-      resetDefaultMetadata();
-    }
-  }, []);
-
-  // Check URL on load and handle popstate (Browser Back Button / Hardware Back / Modal Back)
-  // Ensures that whenever the user clicks Back, the previous window is restored ("Back karne per back window on ho")
-  useEffect(() => {
-    const handleUrlRoute = (e?: PopStateEvent) => {
-      const path = window.location.pathname;
-      const searchParams = new URLSearchParams(window.location.search);
-      const state = e?.state || window.history.state;
-
-      // 1. Movie route (/movie/:id or ?movie=:id)
-      const movieMatch = path.match(/\/movie\/(\d+)/);
-      const qMovieId = searchParams.get("movie");
-      const targetMovieId = movieMatch?.[1]
-        ? parseInt(movieMatch[1], 10)
-        : qMovieId
-        ? parseInt(qMovieId, 10)
-        : state?.modal === "movie" && state?.movieId
-        ? state.movieId
-        : null;
-
-      // 2. Clip / Watch route (?watch=:id or ?clip=:id)
-      const qWatchId = searchParams.get("watch") || searchParams.get("clip");
-      const isClipActive = Boolean(qWatchId || state?.modal === "clip");
-
-      // 3. Series route (?series=:id)
-      const qSeriesId = searchParams.get("series") || (state?.modal === "series" ? state.seriesId : null);
-
-      // 4. Install modal state
-      const isInstallActive = state?.modal === "install";
-
-      if (isClipActive) {
-        // A video clip is active; close other overlays
-        setIsInstallModalOpen(false);
-        setActiveSeries(null);
-        if (state?.prevMovieId) {
-          setActiveMovieId(state.prevMovieId);
+    if (pathname.startsWith("/article/") && activeArticle) {
+      const canonical = `https://movlo.site/article/${activeArticle.slug}`;
+      const graph: object[] = [
+        {
+          "@type": activeArticle.schemaType === "NewsArticle" ? "NewsArticle" : "Article",
+          "@id": `${canonical}#article`,
+          headline: activeArticle.title,
+          description: activeArticle.seoDescription || activeArticle.summary,
+          datePublished: activeArticle.publishedAt,
+          author: { "@type": "Person", name: activeArticle.authorName },
+          publisher: { "@type": "Organization", name: siteSettings.siteName || "MOVLO" },
+          mainEntityOfPage: canonical
+        },
+        {
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: "https://movlo.site/" },
+            {
+              "@type": "ListItem",
+              position: 2,
+              name: activeArticle.categoryName,
+              item: `https://movlo.site/category/${activeArticle.categorySlug}`
+            },
+            { "@type": "ListItem", position: 3, name: activeArticle.title, item: canonical }
+          ]
         }
-      } else if (qSeriesId) {
-        // Back to Turkish / Historical series explorer
-        setActiveClip(null);
-        setActiveMovieId(null);
-        setIsInstallModalOpen(false);
-        getSeriesById(qSeriesId).then((series) => {
-          if (series) {
-            setActiveSeries(series);
-            setActiveSeriesEpisodes(series.episodes || []);
-          }
+      ];
+
+      if (activeArticle.faqs && activeArticle.faqs.length > 0) {
+        graph.push({
+          "@type": "FAQPage",
+          mainEntity: activeArticle.faqs.map((f) => ({
+            "@type": "Question",
+            name: f.question,
+            acceptedAnswer: { "@type": "Answer", text: f.answer }
+          }))
         });
-      } else if (targetMovieId) {
-        // Back to Movie Details window!
-        setActiveClip(null);
-        setActiveSeries(null);
-        setIsInstallModalOpen(false);
-        setActiveMovieId(targetMovieId);
-      } else if (isInstallActive) {
-        setIsInstallModalOpen(true);
-      } else {
-        // Back to main homepage / catalog window! ("Back karne per back window on ho")
-        setActiveMovieId(null);
-        setActiveClip(null);
-        setActiveSeries(null);
-        setIsInstallModalOpen(false);
-        resetDefaultMetadata();
       }
-    };
 
-    // Initial check on load
-    handleUrlRoute();
-    window.addEventListener("popstate", handleUrlRoute);
-    return () => window.removeEventListener("popstate", handleUrlRoute);
-  }, []);
-
-  // Movie details modal handlers
-  const openMovie = (id: number) => {
-    // If the movie in recently watched has a direct YouTube video link, play it!
-    const matched = recentWatchedMovies.find((m) => m.id === id);
-    if (matched && matched.trailer) {
-      openClip({
-        id: String(matched.id),
-        movieId: matched.id,
-        movieTitle: matched.title,
-        clipTitle: matched.title,
-        videoUrl: matched.trailer,
-        thumbnail: matched.backdrop || matched.poster,
-        poster: matched.poster,
-        year: matched.year,
-        rating: matched.userRating || 9.2,
-        genre: matched.genres?.[0] || "Cinema"
+      applySeoHead({
+        title: `${activeArticle.seoTitle || activeArticle.title} | MOVLO`,
+        description: activeArticle.seoDescription || activeArticle.summary,
+        path: `/article/${activeArticle.slug}`,
+        ogType: "article",
+        imageUrl: activeArticle.featuredImageUrl,
+        jsonLdGraph: graph
       });
       return;
     }
 
-    setActiveClip(null);
-    setActiveSeries(null);
-    setIsInstallModalOpen(false);
-    setActiveMovieId(id);
-    window.history.pushState({ modal: "movie", movieId: id }, "", `/movie/${id}`);
-
-    // Track real movie watch event
-    recordMovieWatch({
-      id,
-      title: matched?.title || `Movie ${id}`,
-      poster: matched?.poster,
-      backdrop: matched?.backdrop,
-      rating: matched?.userRating,
-      year: matched?.year,
-      quality: "4K UHD"
-    });
-  };
-
-  const closeMovie = () => {
-    // When closing or clicking Back, return to previous window cleanly
-    if (window.history.state?.modal === "movie" || window.location.pathname.startsWith("/movie") || window.location.search.includes("movie=")) {
-      window.history.back();
-    } else {
-      setActiveMovieId(null);
-      window.history.replaceState({}, "", "/");
-      resetDefaultMetadata();
-    }
-  };
-
-  // Trailer / Clip handlers
-  const openClip = (clip: Partial<MovieClip>) => {
-    const qualityVal = (clip.quality === "1080p HD" || clip.quality === "720p HD" ? clip.quality : "4K UHD");
-    const thumb = clip.thumbnail || clip.poster || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800&auto=format&fit=crop&q=80";
-
-    // Track real movie watch event
-    if (clip.movieTitle || clip.clipTitle) {
-      recordMovieWatch({
-        id: clip.movieId || Date.now(),
-        title: clip.movieTitle || clip.clipTitle || "Cinema",
-        poster: clip.poster || thumb,
-        backdrop: clip.backdrop || thumb,
-        year: clip.year,
-        rating: clip.rating,
-        genre: clip.genre,
-        quality: qualityVal
+    if (activeCategorySlug) {
+      const cat = categories.find((c) => c.slug === activeCategorySlug);
+      const label =
+        cat?.name ||
+        activeCategorySlug
+          .split("-")
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+      applySeoHead({
+        title: `${label} — Latest Coverage | MOVLO`,
+        description:
+          cat?.description ||
+          `Read the latest ${label} news, analysis, and guides on MOVLO.`,
+        path: `/category/${activeCategorySlug}`
       });
+      return;
     }
 
-    const clipId = clip.id || String(clip.movieId || Date.now());
-    const prevMovieId = activeMovieId;
-    window.history.pushState(
-      { modal: "clip", clipId, movieId: clip.movieId, prevMovieId },
-      "",
-      `?watch=${encodeURIComponent(clipId)}`
-    );
+    if (pathname === "/search") {
+      applySeoHead({
+        title: "Search MOVLO — What's Trending. What's Worth Knowing.",
+        description: "Search trending articles, guides, and analysis across MOVLO.site.",
+        path: "/search",
+        noindex: true
+      });
+      return;
+    }
 
-    setActiveClip({
-      id: clipId,
-      movieId: clip.movieId || 0,
-      movieTitle: clip.movieTitle || "Featured Cinema",
-      clipTitle: clip.clipTitle || "Official Video",
-      videoUrl: clip.videoUrl || "",
-      thumbnail: thumb,
-      poster: clip.poster || thumb,
-      backdrop: clip.backdrop || thumb,
-      duration: clip.duration || "Full Movie",
-      quality: qualityVal,
-      genre: clip.genre || "Cinema",
-      genres: clip.genres || ["Cinema", "Feature"],
-      year: clip.year || 2026,
-      rating: clip.rating || 9.2,
-      description: clip.description || "Movlo High Definition Stream"
+    if (TRUST_ROUTES.includes(pathname as TrustRoute)) {
+      const label = pathname.replace("/", "").replace(/-/g, " ");
+      applySeoHead({
+        title: `${label.replace(/\b\w/g, (c) => c.toUpperCase())} | MOVLO`,
+        description: siteSettings.defaultSeoDescription,
+        path: pathname
+      });
+      return;
+    }
+
+    applySeoHead({
+      title: siteSettings.defaultSeoTitle || "MOVLO — What's Trending. What's Worth Knowing.",
+      description: siteSettings.defaultSeoDescription,
+      path: "/"
     });
-  };
+  }, [pathname, activeArticle, activeCategorySlug, categories, siteSettings]);
 
-  const closeClip = () => {
-    if (window.history.state?.modal === "clip" || window.location.search.includes("watch=")) {
-      window.history.back();
-    } else {
-      setActiveClip(null);
-      if (activeMovieId) {
-        window.history.replaceState({ modal: "movie", movieId: activeMovieId }, "", `/movie/${activeMovieId}`);
-      } else {
-        window.history.replaceState({}, "", "/");
-      }
-    }
-  };
-
-  // Turkish & Historical Drama Series Explorer
-  const openSeriesExplorer = async (seriesId: string) => {
-    maybeTriggerMonetagOnAction();
-    const series = await getSeriesById(seriesId);
-    if (series) {
-      window.history.pushState(
-        { modal: "series", seriesId },
-        "",
-        `?series=${encodeURIComponent(seriesId)}`
+  const renderRoute = () => {
+    if (pathname.startsWith("/admin")) {
+      return (
+        <AdminDashboard
+          user={user}
+          authReady={authReady}
+          categories={categories}
+          metricsMap={metricsMap}
+          siteSettings={siteSettings}
+          adSettings={adSettings}
+          onRefreshPublicData={refreshPublicData}
+          onNavigate={navigate}
+        />
       );
-      setActiveClip(null);
-      setActiveMovieId(null);
-      setIsInstallModalOpen(false);
-      setActiveSeries(series);
-      setActiveSeriesEpisodes(series.episodes || []);
-    }
-  };
-
-  const closeSeriesExplorer = () => {
-    if (window.history.state?.modal === "series" || window.location.search.includes("series=")) {
-      window.history.back();
-    } else {
-      setActiveSeries(null);
-      window.history.replaceState({}, "", "/");
-    }
-  };
-
-  // Install PWA Modal handlers with back support
-  const openInstallModal = () => {
-    setIsInstallModalOpen(true);
-    window.history.pushState({ modal: "install" }, "", window.location.href);
-  };
-
-  const closeInstallModal = () => {
-    if (window.history.state?.modal === "install") {
-      window.history.back();
-    } else {
-      setIsInstallModalOpen(false);
-    }
-  };
-
-  const playSeriesEpisode = (episode: SeriesEpisode, allEpisodes: SeriesEpisode[]) => {
-    setActiveSeriesEpisodes(allEpisodes);
-    const clip = seriesEpisodeToClip(episode, activeSeries);
-    openClip(clip);
-  };
-
-  // Handle Play directly from JSON Movie (Global Search or Hero)
-  const handlePlayJsonMovie = (movie: JsonMovie) => {
-    if (movie.isSeries && movie.seriesId) {
-      openSeriesExplorer(movie.seriesId);
-      return;
     }
 
-    // Add to Recently Watched with local persistence
-    const updated = saveRecentlyWatched(movie);
-    setRecentWatchedMovies(updated.map((m, idx) => jsonMovieToMovie(m, idx)));
-
-    // Smart Monetag monetization action
-    maybeTriggerMonetagOnAction();
-
-    openClip({
-      id: movie.id,
-      movieId: 0,
-      movieTitle: movie.title,
-      clipTitle: movie.fullTitle || movie.title,
-      videoUrl: movie.videoUrl,
-      thumbnail: movie.thumbnail || movie.poster,
-      poster: movie.poster || movie.thumbnail,
-      backdrop: movie.backdrop || movie.thumbnail || movie.poster,
-      duration: movie.duration || "Full Movie",
-      quality: (movie.quality === "720p HD" || movie.quality === "4K UHD" ? movie.quality : "1080p HD"),
-      genre: movie.genre || "Cinema",
-      genres: movie.genres || [movie.genre || "Cinema"],
-      year: movie.year || 2026,
-      rating: movie.rating || 9.2,
-      description: movie.description
-    });
-  };
-
-  // Handle click on Movie Card in the Catalog
-  const handleSelectRecentItem = (item: RecentAddedItem) => {
-    if (item.isSeries && item.seriesId) {
-      openSeriesExplorer(item.seriesId);
-      return;
+    if (pathname.startsWith("/article/")) {
+      return (
+        <ArticlePage
+          article={activeArticle}
+          allArticles={articles}
+          adSettings={adSettings}
+          onNavigate={navigate}
+        />
+      );
     }
 
-    if (item.itemType === "ad_link" || item.isAd) {
-      if (item.targetUrl) {
-        recordAdClick(item.id).catch(() => {});
-        window.open(item.targetUrl, "_blank", "noopener,noreferrer");
-      }
-    } else {
-      const jsonMovie: JsonMovie = {
-        id: item.id,
-        title: item.title,
-        fullTitle: item.subtitle,
-        videoUrl: item.videoUrl || "",
-        thumbnail: item.poster,
-        poster: item.poster,
-        backdrop: item.backdrop || item.poster,
-        duration: item.duration || "Full Movie",
-        quality: item.quality || "4K UHD",
-        genre: item.genre || "Cinema",
-        genres: item.genres || ["Cinema", "Feature"],
-        year: item.year || 2026,
-        views: item.views || 60000,
-        rating: item.rating || 9.2,
-        description: item.description,
-        category: selectedCategory
-      };
-
-      // Add to Recently Watched with local persistence
-      const updated = saveRecentlyWatched(jsonMovie);
-      setRecentWatchedMovies(updated.map((m, idx) => jsonMovieToMovie(m, idx)));
-
-      // Smart Monetag action trigger
-      maybeTriggerMonetagOnAction();
-
-      openClip({
-        id: item.id,
-        movieId: 0,
-        movieTitle: item.title,
-        clipTitle: item.subtitle,
-        videoUrl: item.videoUrl || "",
-        thumbnail: item.poster,
-        poster: item.poster,
-        backdrop: item.backdrop || item.poster,
-        duration: item.duration || "Full Movie",
-        quality: (item.quality === "1080p HD" || item.quality === "720p HD" ? item.quality : "4K UHD"),
-        genre: item.genre || "Cinema",
-        genres: item.genres || ["Cinema"],
-        year: item.year || 2026,
-        views: item.views || 60000,
-        rating: item.rating || 9.2,
-        description: item.description || "Movlo Cinema Stream"
-      });
+    if (activeCategorySlug) {
+      return (
+        <CategoryPage
+          slug={activeCategorySlug}
+          articles={articles}
+          categories={categories}
+          adSettings={adSettings}
+          onNavigate={navigate}
+        />
+      );
     }
+
+    if (pathname === "/search") {
+      return (
+        <SearchPage
+          initialQuery={searchParams.get("q") || ""}
+          articles={articles}
+          onNavigate={navigate}
+        />
+      );
+    }
+
+    if (TRUST_ROUTES.includes(pathname as TrustRoute)) {
+      return <TrustPages route={pathname as TrustRoute} onNavigate={navigate} />;
+    }
+
+    return (
+      <HomePage
+        articles={articles}
+        categories={categories}
+        metricsMap={metricsMap}
+        siteSettings={siteSettings}
+        adSettings={adSettings}
+        onNavigate={navigate}
+      />
+    );
   };
 
   return (
-    <div className="min-h-screen bg-[#07080c] text-neutral-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] selection:bg-amber-400 selection:text-black">
-      {/* 
-        HEADER:
-        - Displays movie-site branding/title: Movlo.site
-        - Preserves existing navigation and styling
-      */}
-      <Navbar
-        onSelectMovie={openMovie}
-        onPlayClip={openClip}
-        currentRegion={currentRegion}
-        onRegionChange={setCurrentRegion}
-        hasApiKey={true}
-        onOpenInstallModal={openInstallModal}
-        onNavigateSection={(sectionId) => {
-          const el = document.getElementById(sectionId);
-          if (el) el.scrollIntoView({ behavior: "smooth" });
-        }}
-      />
-
-      {/* 
-        HERO SECTION:
-        - Directly below the header: Premium-looking search bar querying all JSON datasets
-        - Directly under the search bar: 5 category navigation buttons (English, Indian, Chinese, Dramas, Others)
-        - Over the hero video loop without obstructing key visuals
-        - Center Movlo.site branding
-      */}
-      <HeroSection
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-        onPlayJsonMovie={handlePlayJsonMovie}
-        onSelectMovie={openMovie}
-        onPlayClip={openClip}
-        onExploreSeries={openSeriesExplorer}
-        watchlistCount={watchlist.length}
-      />
-
-      {/* PRIMARY APPLICATION SECTIONS */}
-      <main className="flex-1 w-full flex flex-col">
-        {/* Top Google AdSense Leaderboard Unit */}
-        <GoogleAdSenseContainer variant="leaderboard" />
-
-        {/* 
-          MOVIE CATEGORY CATALOG:
-          - Automatically reads from the respective JSON file:
-            • English Movies (initial 8 movies, paginated without full page reload)
-            • Indian Movies (infinite / continuous scrolling of all ~100 movies)
-            • Chinese Movies, Dramas, Others
-          - Reuses existing 16:9 movie-card design
-        */}
-        <div id="recent-added" className="pt-2">
-          <RecentAddedSection
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-            onSelectItem={handleSelectRecentItem}
-            onExploreSeries={openSeriesExplorer}
-          />
-        </div>
-
-        {/* Monetag In-Feed Midpoint High-Yield Banner */}
-        <MonetagPromoBanner />
-
-        {/* 
-          TRENDING SEARCH QUERIES & KEYWORDS HUB:
-          - High-intent search terms queried on Google, ChatGPT, Gemini, Netflix, and MovieBox
-          - Clicking any query instantly searches across Movlo's catalog
-        */}
-        <div id="trending-queries" className="pt-2">
-          <TrendingKeywordsHub />
-        </div>
-
-        {/* Mid-Feed Google AdSense Responsive Unit */}
-        <GoogleAdSenseContainer variant="in-feed" />
-
-        {/* 
-          RECENTLY WATCHED SECTION:
-          - Automatically populated when a user watches/opens any movie
-          - Stored in localStorage so it remains after navigating between categories
-          - Uses existing Recently Watched UI
-        */}
-        <div id="recent-watch" className="pt-4">
-          <div id="most-watched" />
-          <RecentWatchSection
-            movies={recentWatchedMovies}
-            isLoading={isRecentWatchedLoading}
-            error={recentWatchedError}
-            onSelectMovie={openMovie}
-            onRetry={loadWatchedData}
-          />
-        </div>
-
-        {/* 
-          MY WATCHLIST SECTION:
-          - Stored locally in browser state
-          - Saved directly from Movie Details modal
-        */}
-        <div id="my-watchlist" className="pt-4">
-          <MyWatchlistSection
-            watchlist={watchlist}
-            onSelectMovie={openMovie}
-            onRemoveMovie={removeFromWatchlist}
-            onClearWatchlist={clearWatchlist}
-            onBrowseExplore={() => {
-              const el = document.getElementById("recent-added");
-              if (el) el.scrollIntoView({ behavior: "smooth" });
-            }}
-          />
-        </div>
-
-        {/* 
-          NEW RELEASE MOVIES (API / TMDB MOVIES SECTION):
-          - Only location where API/TMDB movies appear
-          - Displayed as a single horizontal strip / row
-          - Plays official movie trailers
-        */}
-        <div id="upcoming-trailers" className="pt-4">
-          <UpcomingSection
-            onPlayTrailer={openClip}
-            onSelectMovie={openMovie}
-          />
-        </div>
-
-        {/* 
-          UPCOMING MOVIES & BLOCKBUSTERS 2026–2027 EDITORIAL ARTICLE:
-          - Deep SEO release calendar, cast, and search intent analysis for Google ranking
-        */}
-        <div id="upcoming-movies" className="pt-4">
-          <UpcomingMoviesArticle />
-        </div>
-
-        {/* Google AdSense Responsive Unit (Publisher: ca-pub-6696395667318454) */}
-        <GoogleAdSenseContainer />
-
-        {/* 
-          SEO FAQ OPTIMIZATION FOR GOOGLE SEARCH ENGINE:
-          - Rich search snippet accordions with interactive search and related keywords
-        */}
-        <div id="faq" className="pt-4">
-          <SeoFaqSection />
-        </div>
-      </main>
-
-      {/* Trailer / Video Player Modal */}
-      {activeClip && (
-        <ClipPlayerModal
-          clip={activeClip}
-          onClose={closeClip}
-          onSelectClip={(c) => openClip(c)}
-          relatedClips={
-            activeSeriesEpisodes.length > 0
-              ? activeSeriesEpisodes.map((ep) => seriesEpisodeToClip(ep, activeSeries))
-              : undefined
-          }
-          onOpenMovieDetails={(mId) => {
-            openMovie(mId);
-          }}
+    <ErrorBoundary>
+      <div className="min-h-screen flex flex-col bg-white text-[#0A0A0A]">
+        <Header
+          currentPath={pathname}
+          onNavigate={navigate}
+          siteSettings={siteSettings}
         />
-      )}
-
-      {/* Turkish & Historical Drama Episode Explorer Modal */}
-      {activeSeries && (
-        <EpisodeExplorerModal
-          series={activeSeries}
-          onClose={closeSeriesExplorer}
-          onPlayEpisode={playSeriesEpisode}
+        <div className="flex-1">{renderRoute()}</div>
+        <Footer
+          categories={categories}
+          siteSettings={siteSettings}
+          onNavigate={navigate}
         />
-      )}
-
-      {/* Full Movie Details Modal */}
-      {activeMovieId && (
-        <MovieDetailsModal
-          movieId={activeMovieId}
-          onClose={closeMovie}
-          onPlayTrailer={(clip) => openClip(clip)}
-          onSelectRelatedMovie={(rId) => openMovie(rId)}
-        />
-      )}
-
-      {/* Monetag Floating Bottom Revenue Bar */}
-      <MonetagStickyBar />
-
-      {/* PWA Install Modal */}
-      <InstallAppModal
-        isOpen={isInstallModalOpen}
-        onClose={closeInstallModal}
-        deferredPrompt={deferredPrompt}
-      />
-
-      {/* Footer */}
-      <Footer
-        onNavigateSection={(sectionId) => {
-          const el = document.getElementById(sectionId);
-          if (el) el.scrollIntoView({ behavior: "smooth" });
-        }}
-        onOpenInstallModal={openInstallModal}
-      />
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
+
+export default App;

@@ -1,118 +1,136 @@
 import React from "react";
-import { Shield, Download } from "lucide-react";
+import { Category, SiteSettings } from "../types";
 
 interface FooterProps {
-  onNavigateSection: (sectionId: string) => void;
-  onOpenInstallModal?: () => void;
+  categories: Category[];
+  siteSettings: SiteSettings;
+  onNavigate: (path: string) => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onNavigateSection, onOpenInstallModal }) => {
+export const Footer: React.FC<FooterProps> = ({
+  categories,
+  siteSettings,
+  onNavigate
+}) => {
+  const handleLink = (e: React.MouseEvent, path: string) => {
+    e.preventDefault();
+    onNavigate(path);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
-    <footer className="w-full bg-[#050505]/95 backdrop-blur-md border-t border-white/5 pt-12 pb-8 mt-12 text-gray-400 text-xs relative z-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 pb-8 border-b border-white/5">
-          {/* Brand & SEO description */}
-          <div className="flex flex-col gap-2.5 max-w-md">
-            <div
-              id="footer-movlo-heading"
-              className="inline-flex items-center gap-2 select-none group w-fit cursor-pointer"
-              onClick={() => onNavigateSection("hero")}
-              title="Movlo.site — Stream Free Movies & 4K Trailers"
+    <footer className="border-t border-neutral-200 bg-white mt-20">
+      <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 pb-12 border-b border-neutral-200">
+          {/* Brand Column */}
+          <div className="md:col-span-5">
+            <a
+              href="/"
+              onClick={(e) => handleLink(e, "/")}
+              className="inline-flex items-center gap-2.5 mb-3"
             >
-              <div className="w-8 h-8 rounded-xl p-0.5 bg-gradient-to-tr from-amber-400 via-orange-500 to-amber-600 shadow-md shadow-amber-500/20 border border-amber-400/30 overflow-hidden shrink-0">
-                <img
-                  src="/falcon-icon.jpg"
-                  alt="Falcon Movlo Icon"
-                  className="w-full h-full object-cover rounded-[10px]"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <span className="font-lumos text-xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-200 to-amber-400">
-                Movlo.site
+              <span className="inline-flex items-center justify-center w-7 h-7 bg-[#0A0A0A] text-white font-editorial font-bold text-base">
+                M
               </span>
-            </div>
-            <p className="text-gray-400 text-xs leading-relaxed">
-              Watch movies online free on Movlo Movies. Stream trending Indian cinema, Bollywood, Turkish dramas in Urdu, Hazrat Yousuf (A.S), and latest 4K cinema trailers.
+              <span className="font-editorial text-xl font-extrabold tracking-tight text-[#0A0A0A]">
+                {siteSettings.siteName || "MOVLO"}
+              </span>
+            </a>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500 mb-3">
+              {siteSettings.tagline}
             </p>
-            {/* SEO Hashtags for Search Crawlers */}
-            <div className="flex flex-wrap gap-1.5 pt-1 text-[10px] text-amber-400/80 font-medium">
-              <span>#Movlo</span>
-              <span>#MovloMovies</span>
-              <span>#TurkishDramasUrdu</span>
-              <span>#HazratYousuf</span>
-              <span>#IndianMovies</span>
-              <span>#Bollywood</span>
-              <span>#4KStreaming</span>
+            <p className="text-sm text-neutral-600 leading-relaxed max-w-md">
+              {siteSettings.footerInfo}
+            </p>
+          </div>
+
+          {/* Sections Column */}
+          <div className="md:col-span-4">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500 mb-4 font-sans">
+              Sections
+            </h3>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              {categories.slice(0, 10).map((cat) => (
+                <a
+                  key={cat.slug}
+                  href={`/category/${cat.slug}`}
+                  onClick={(e) => handleLink(e, `/category/${cat.slug}`)}
+                  className="text-sm text-neutral-700 hover:text-[#0A0A0A] hover:underline underline-offset-4"
+                >
+                  {cat.name}
+                </a>
+              ))}
             </div>
           </div>
 
-          {/* Quick links */}
-          <div className="flex flex-wrap gap-4 sm:gap-5 text-xs font-semibold text-gray-300">
-            <button
-              onClick={() => onNavigateSection("recent-added")}
-              className="hover:text-amber-400 transition-colors cursor-pointer"
-            >
-              Recent Added
-            </button>
-            <button
-              onClick={() => onNavigateSection("trending-queries")}
-              className="hover:text-amber-400 transition-colors cursor-pointer text-amber-300/90"
-            >
-              Trending Queries
-            </button>
-            <button
-              onClick={() => onNavigateSection("upcoming-movies")}
-              className="hover:text-amber-400 transition-colors cursor-pointer"
-            >
-              2026 Movies Guide
-            </button>
-            <button
-              onClick={() => onNavigateSection("faq")}
-              className="hover:text-amber-400 transition-colors cursor-pointer"
-            >
-              Search FAQ
-            </button>
-            <button
-              onClick={() => onNavigateSection("my-watchlist")}
-              className="hover:text-amber-400 transition-colors cursor-pointer text-amber-400"
-            >
-              My Watchlist
-            </button>
-            <button
-              onClick={() => onNavigateSection("upcoming-trailers")}
-              className="hover:text-amber-400 transition-colors cursor-pointer"
-            >
-              Trailers
-            </button>
-            {onOpenInstallModal && (
-              <button
-                onClick={onOpenInstallModal}
-                className="text-amber-400 hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1 font-bold"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Install App</span>
-              </button>
-            )}
+          {/* Publication & Legal Column */}
+          <div className="md:col-span-3">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500 mb-4 font-sans">
+              Publication
+            </h3>
+            <ul className="space-y-2 text-sm text-neutral-700">
+              <li>
+                <a href="/about" onClick={(e) => handleLink(e, "/about")} className="hover:text-[#0A0A0A] hover:underline underline-offset-4">
+                  About Us
+                </a>
+              </li>
+              <li>
+                <a href="/editorial-policy" onClick={(e) => handleLink(e, "/editorial-policy")} className="hover:text-[#0A0A0A] hover:underline underline-offset-4">
+                  Editorial Policy
+                </a>
+              </li>
+              <li>
+                <a href="/contact" onClick={(e) => handleLink(e, "/contact")} className="hover:text-[#0A0A0A] hover:underline underline-offset-4">
+                  Contact Us
+                </a>
+              </li>
+              <li>
+                <a href="/privacy-policy" onClick={(e) => handleLink(e, "/privacy-policy")} className="hover:text-[#0A0A0A] hover:underline underline-offset-4">
+                  Privacy Policy
+                </a>
+              </li>
+              <li>
+                <a href="/terms" onClick={(e) => handleLink(e, "/terms")} className="hover:text-[#0A0A0A] hover:underline underline-offset-4">
+                  Terms &amp; Conditions
+                </a>
+              </li>
+              <li>
+                <a href="/disclaimer" onClick={(e) => handleLink(e, "/disclaimer")} className="hover:text-[#0A0A0A] hover:underline underline-offset-4">
+                  Disclaimer
+                </a>
+              </li>
+              <li>
+                <a href="/cookie-policy" onClick={(e) => handleLink(e, "/cookie-policy")} className="hover:text-[#0A0A0A] hover:underline underline-offset-4">
+                  Cookie Policy
+                </a>
+              </li>
+            </ul>
           </div>
         </div>
 
-        {/* Attribution, Cache Performance & Legal Disclaimers */}
-        <div className="pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left text-[11px] text-gray-500">
-          <div className="flex items-center gap-2">
-            <Shield className="w-3.5 h-3.5 text-amber-400/70 shrink-0" />
-            <span>
-              Movlo.site Cinema Network. Fast 4K video playback & streaming guides.
-            </span>
-          </div>
-
-          {/* Service Worker Image Cache Indicator */}
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>⚡ Service Worker Image Cache Active</span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span>© {new Date().getFullYear()} Movlo.site — All rights reserved.</span>
+        <div className="pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-neutral-500">
+          <p>
+            © {new Date().getFullYear()} {siteSettings.siteName || "MOVLO"} ({siteSettings.domain || "https://movlo.site"}). All rights reserved.
+          </p>
+          <div className="flex items-center gap-5">
+            {siteSettings.socialLinks?.x && (
+              <a href={siteSettings.socialLinks.x} target="_blank" rel="noopener noreferrer" className="hover:text-[#0A0A0A]">
+                X
+              </a>
+            )}
+            {siteSettings.socialLinks?.youtube && (
+              <a href={siteSettings.socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="hover:text-[#0A0A0A]">
+                YouTube
+              </a>
+            )}
+            {siteSettings.socialLinks?.linkedin && (
+              <a href={siteSettings.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="hover:text-[#0A0A0A]">
+                LinkedIn
+              </a>
+            )}
+            <a href="/sitemap.xml" className="hover:text-[#0A0A0A]">
+              Sitemap
+            </a>
           </div>
         </div>
       </div>

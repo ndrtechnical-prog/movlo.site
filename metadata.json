@@ -1,6 +1,6 @@
 {
   "name": "Movlo.site",
-  "description": "Stream free movies online & Urdu dubbed Turkish dramas in HD on Movlo Movies (Movlo.site). Watch trending Indian cinema, Bollywood, Turkish series episodes, and historical stories.",
+  "description": "MOVLO — What's Trending. What's Worth Knowing. An AI-powered editorial publishing platform covering trending news, technology, artificial intelligence, entertainment, gaming, and digital culture.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -1,0 +1,214 @@
+{
+  "entities": {
+    "Article": {
+      "title": "Article",
+      "description": "An editorial article on MOVLO.site with full SEO metadata, structured sections, FAQs, and publishing lifecycle.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 5, "maxLength": 200 },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 160, "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "summary": { "type": "string", "minLength": 10, "maxLength": 600 },
+        "contentMarkdown": { "type": "string", "minLength": 50, "maxLength": 60000 },
+        "categorySlug": { "type": "string", "minLength": 2, "maxLength": 80, "pattern": "^[a-z0-9\\-]+$" },
+        "categoryName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "primaryKeyword": { "type": "string", "maxLength": 120 },
+        "secondaryKeywords": { "type": "array" },
+        "faqs": { "type": "array" },
+        "internalLinks": { "type": "array" },
+        "externalSources": { "type": "array" },
+        "featuredImageUrl": { "type": "string", "maxLength": 1000 },
+        "featuredImageAlt": { "type": "string", "maxLength": 250 },
+        "authorName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "authorUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "seoTitle": { "type": "string", "maxLength": 160 },
+        "seoDescription": { "type": "string", "maxLength": 320 },
+        "canonicalUrl": { "type": "string", "maxLength": 500 },
+        "schemaType": { "type": "string", "enum": ["Article", "NewsArticle"] },
+        "status": { "type": "string", "enum": ["draft", "scheduled", "published", "archived"] },
+        "readingTimeMinutes": { "type": "number" },
+        "isBreaking": { "type": "boolean" },
+        "isFeatured": { "type": "boolean" },
+        "isPopular": { "type": "boolean" },
+        "publishedAt": { "type": "string", "maxLength": 64 },
+        "scheduledFor": { "type": "string", "maxLength": 64 },
+        "sourceTopicId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "title",
+        "slug",
+        "summary",
+        "contentMarkdown",
+        "categorySlug",
+        "categoryName",
+        "authorName",
+        "authorUid",
+        "status",
+        "schemaType",
+        "readingTimeMinutes",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Content category for MOVLO.site editorial classification.",
+      "type": "object",
+      "properties": {
+        "slug": { "type": "string", "minLength": 2, "maxLength": 80, "pattern": "^[a-z0-9\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 400 },
+        "order": { "type": "number" },
+        "showInNav": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["slug", "name", "description", "order", "showInNav", "createdAt", "updatedAt"]
+    },
+    "TrendingTopic": {
+      "title": "TrendingTopic",
+      "description": "A discovered trending topic from verified public RSS/API sources or manual editorial input.",
+      "type": "object",
+      "properties": {
+        "keyword": { "type": "string", "minLength": 2, "maxLength": 180 },
+        "relatedQueries": { "type": "array" },
+        "country": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "categorySlug": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "source": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "sourceUrl": { "type": "string", "maxLength": 1000 },
+        "trendDirection": { "type": "string", "enum": ["Rising", "Breakout", "Steady", "Manual"] },
+        "searchInterest": { "type": "string", "maxLength": 120 },
+        "discoveredAt": { "type": "string", "maxLength": 64 },
+        "timeWindow": { "type": "string", "enum": ["24h", "7d", "30d"] },
+        "opportunityScore": { "type": "number" },
+        "opportunityBasis": { "type": "string", "maxLength": 240 },
+        "status": { "type": "string", "enum": ["new", "saved", "drafted", "rejected"] },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "keyword",
+        "country",
+        "categorySlug",
+        "source",
+        "trendDirection",
+        "discoveredAt",
+        "opportunityScore",
+        "status",
+        "ownerUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Global site configuration and AdSense slot settings.",
+      "type": "object",
+      "properties": {
+        "siteName": { "type": "string", "maxLength": 100 },
+        "tagline": { "type": "string", "maxLength": 200 },
+        "domain": { "type": "string", "maxLength": 200 },
+        "logoText": { "type": "string", "maxLength": 60 },
+        "defaultLanguage": { "type": "string", "maxLength": 20 },
+        "defaultSeoTitle": { "type": "string", "maxLength": 160 },
+        "defaultSeoDescription": { "type": "string", "maxLength": 320 },
+        "footerInfo": { "type": "string", "maxLength": 500 },
+        "publisherId": { "type": "string", "maxLength": 64 },
+        "slots": { "type": "object" },
+        "socialLinks": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["updatedAt"]
+    },
+    "ArticleMetric": {
+      "title": "ArticleMetric",
+      "description": "Publicly readable view count tracker for published articles.",
+      "type": "object",
+      "properties": {
+        "articleId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "views": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["articleId", "views", "updatedAt"]
+    },
+    "AutomationReport": {
+      "title": "AutomationReport",
+      "description": "Audit log of daily/weekly trend & editorial automation runs.",
+      "type": "object",
+      "properties": {
+        "workflowType": { "type": "string", "enum": ["daily", "weekly"] },
+        "summary": { "type": "string", "maxLength": 2000 },
+        "discoveredCount": { "type": "number" },
+        "duplicatesRemoved": { "type": "number" },
+        "draftsCreated": { "type": "number" },
+        "outdatedArticleIds": { "type": "array" },
+        "evergreenKeywords": { "type": "array" },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workflowType", "summary", "discoveredCount", "createdByUid", "createdAt"]
+    },
+    "ContactMessage": {
+      "title": "ContactMessage",
+      "description": "Contact form submission isolated from public reads.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "email": { "type": "string", "minLength": 5, "maxLength": 160 },
+        "subject": { "type": "string", "minLength": 3, "maxLength": 200 },
+        "message": { "type": "string", "minLength": 10, "maxLength": 4000 },
+        "status": { "type": "string", "enum": ["unread", "reviewed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "subject", "message", "status", "createdAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized admin record.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 160 },
+        "role": { "type": "string", "enum": ["admin"] },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role", "addedAt"]
+    }
+  },
+  "firestore": {
+    "/articles/{articleId}": {
+      "schema": { "$ref": "#/entities/Article" },
+      "description": "Published, scheduled, and draft editorial articles."
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Editorial content categories."
+    },
+    "/trendingTopics/{topicId}": {
+      "schema": { "$ref": "#/entities/TrendingTopic" },
+      "description": "Discovered trending keywords and opportunities."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/SiteSettings" },
+      "description": "Website settings ('site') and AdSense slot settings ('ads')."
+    },
+    "/articleMetrics/{articleId}": {
+      "schema": { "$ref": "#/entities/ArticleMetric" },
+      "description": "Article view counters."
+    },
+    "/automationReports/{reportId}": {
+      "schema": { "$ref": "#/entities/AutomationReport" },
+      "description": "Daily and weekly editorial automation reports."
+    },
+    "/contactMessages/{messageId}": {
+      "schema": { "$ref": "#/entities/ContactMessage" },
+      "description": "Contact page submissions (PII protected)."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Admin authorization records."
+    }
+  }
+}
